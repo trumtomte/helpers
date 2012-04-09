@@ -17,12 +17,36 @@ namespace cloudlib;
  */
 class Html
 {
+    /**
+     * Relative path to css files
+     *
+     * @access  public
+     * @var     string
+     */
     public static $css = null;
 
+    /**
+     * Relative path to js files
+     *
+     * @access  public
+     * @var     string
+     */
     public static $js = null;
 
+    /**
+     * Relative path for anchor links
+     *
+     * @access  public
+     * @var     string
+     */
     public static $a = null;
 
+    /**
+     * Relative path for images
+     *
+     * @access  public
+     * @var     string
+     */
     public static $img = null;
 
     /**
