@@ -1,0 +1,16 @@
+{
+    "name": "cloudlib/helpers",
+    "description": "Helper classes for Cloudlib",
+    "keywords": ["Helpers", "Library", "Cloudlib"],
+    "homepage": "https://github.com/trumtomte/helpers",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Sebastian Book",
+            "email": "cloudlibframework@gmail.com"
+        }
+    ],
+    "require": {
+        "php": ">=5.3.6"
+    }
+}
