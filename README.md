@@ -18,7 +18,7 @@ Helper library for Cloudlib
 ```json
 {
     "require": {
-        "cloudlib\helpers": "0.1.0"
+        "cloudlib\helpers": "0.1.1"
     }
 }
 ```
