@@ -13,4 +13,9 @@
     "require": {
         "php": ">=5.3.6"
     }
+    "autoload": {
+        "psr-0": {
+            "helpers": "cloudlib/"
+        }
+    }
 }
