@@ -15,10 +15,13 @@ Helper library for Cloudlib
 
 #### Composer
 
+**To get the latest version**
+
+
 ```json
 {
     "require": {
-        "cloudlib\helpers": "0.1.1"
+        "cloudlib\helpers": "dev-master"
     }
 }
 ```
