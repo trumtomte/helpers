@@ -45,7 +45,7 @@ class Hash
      * @param   int     $rounds Number of rounds
      * @return  string          Returns a hash
      */
-    public static function create($value, $salt, $secret, $rounds = 12)
+    public static function create($value, $salt, $secret = null, $rounds = 12)
     {
         if($rounds > 31 || $rounds < 4)
         {
@@ -70,7 +70,7 @@ class Hash
      * @param   int     $rounds Number of rounds
      * @return  boolean         Returns true if the comparison is equal
      */
-    public static function compare($hash, $value, $salt, $secret, $rounds = 12)
+    public static function compare($hash, $value, $salt, $secret = null, $rounds = 12)
     {
         $secret = (static::$secret) ? static::$secret : $secret;
 
