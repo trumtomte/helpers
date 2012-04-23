@@ -24,10 +24,10 @@ class Database
     /**
      * Current connection
      *
-     * @access  protected
+     * @access  public
      * @var     object
      */
-    protected $connection;
+    public $connection;
 
     /**
      * Initiate the database connection (via PDO) at object creation
@@ -283,5 +283,15 @@ class Database
 
         return true;
     }
-}
 
+    /**
+     * Closes the current database connection
+     *
+     * @access  public
+     * @return  void
+     */
+    public function close()
+    {
+        $this->connection = null;
+    }
+}
