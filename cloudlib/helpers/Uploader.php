@@ -221,7 +221,7 @@ class Uploader
         $this->data[$key]['origname'] = $name;
 
         // Valid filesize?
-        if($tempObj->getSize() > static::$config['filesize'])
+        if($tempObj->getSize() > $this->config['filesize'])
         {
             $this->errors[$key] = array(
                 'name' => $name,
@@ -233,9 +233,9 @@ class Uploader
         $this->data[$key]['size'] = $tempObj->getSize();
 
         // Valid file extension?
-        if(isset(static::$config['filetypes']) && is_array(static::$config['filetypes']))
+        if(isset($this->config['filetypes']) && is_array($this->config['filetypes']))
         {
-            if( ! in_array($nameObj->getExtension(), static::$config['filetypes']))
+            if( ! in_array($nameObj->getExtension(), $this->config['filetypes']))
             {
                 $this->error[$key] = array(
                     'name' => $name,
@@ -253,9 +253,9 @@ class Uploader
             list($width, $height) = getimagesize($tmp);
 
             // Check width
-            if(isset(static::$config['width']))
+            if(isset($this->config['width']))
             {
-                if($width > static::$config['width'])
+                if($width > $this->config['width'])
                 {
                     $this->error[$key] = array(
                         'name' => $name,
@@ -266,9 +266,9 @@ class Uploader
             }
 
             // Check height
-            if(isset(static::$config['height']))
+            if(isset($this->config['height']))
             {
-                if($height > static::$config['height'])
+                if($height > $this->config['height'])
                 {
                     $this->error[$key] = array(
                         'name' => $name,
@@ -290,11 +290,11 @@ class Uploader
         }
 
         // Set name
-        $prefix = isset(static::$config['prefix']) ? static::$config['prefix'] : '';
+        $prefix = isset($this->config['prefix']) ? $this->config['prefix'] : '';
 
-        if(isset(static::$config['filename']))
+        if(isset($this->config['filename']))
         {
-            $newName = sprintf('%s%s.%s', $prefix, static::$config['filename'],
+            $newName = sprintf('%s%s.%s', $prefix, $this->config['filename'],
                 $nameObj->getExtension());
         }
         else
@@ -306,12 +306,12 @@ class Uploader
 
         // If we should replace the existing file, if not - check it it exists and
         // prepend the filename with copy_(number)
-        if(static::$config['replace'] == false)
+        if($this->config['replace'] == false)
         {
             $copy = '';
             $counter = 1;
 
-            while(file_exists(static::$config['directory'] . $copy . $newName))
+            while(file_exists($this->config['directory'] . $copy . $newName))
             {
                 $copy = sprintf('copy(%s)_', $counter);
                 $counter++;
@@ -322,7 +322,7 @@ class Uploader
 
         $this->data[$key]['name'] = $newName;
 
-        $dir = rtrim(static::$config['directory'], '/') . '/';
+        $dir = rtrim($this->config['directory'], '/') . '/';
 
         if( ! move_uploaded_file($tmp, $dir . $newName))
         {
