@@ -20,6 +20,14 @@ use InvalidArgumentException;
 class Hash
 {
     /**
+     * Default secret to be used with hashing
+     *
+     * @access  public
+     * @var     string
+     */
+    public static $secret = null;
+
+    /**
      * Constructor
      *
      * @access  public
@@ -44,6 +52,8 @@ class Hash
             throw new InvalidArgumentException('The number of rounds has to be between 4-31');
         }
 
+        $secret = (static::$secret) ? static::$secret : $secret;
+
         $salt = sprintf('$2a$%02d$%s', $rounds, substr(base64_encode(sha1($salt . $secret)), 0, 22));
 
         return substr(crypt($value, $salt), 7);
@@ -62,6 +72,8 @@ class Hash
      */
     public static function compare($hash, $value, $salt, $secret, $rounds = 12)
     {
+        $secret = (static::$secret) ? static::$secret : $secret;
+
         return (bool) (($new = static::create($value, $salt, $secret, $rounds)) == $hash);
     }
 }
