@@ -123,7 +123,7 @@ class Uploader
             return (bool) in_array(4, $this->files['error']);
         }
 
-        return (bool) ($this->files['error'] !== 4);
+        return ($this->files['error'] !== 4) ? false : true;
     }
 
     /**
