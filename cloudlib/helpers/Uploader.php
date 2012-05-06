@@ -214,7 +214,7 @@ class Uploader
         // Is it a file?
         if($tempObj->isFile() == false)
         {
-            $this->error[$key] = array('name' => $name, 'error' => 'File is invalid');
+            $this->errors[$key] = array('name' => $name, 'error' => 'File is invalid');
             return false;
         }
 
@@ -237,7 +237,7 @@ class Uploader
         {
             if( ! in_array($nameObj->getExtension(), $this->config['filetypes']))
             {
-                $this->error[$key] = array(
+                $this->errors[$key] = array(
                     'name' => $name,
                     'error' => 'Invalid file extension'
                 );
@@ -257,7 +257,7 @@ class Uploader
             {
                 if($width > $this->config['width'])
                 {
-                    $this->error[$key] = array(
+                    $this->errors[$key] = array(
                         'name' => $name,
                         'error' => 'Invalid width'
                     );
@@ -270,7 +270,7 @@ class Uploader
             {
                 if($height > $this->config['height'])
                 {
-                    $this->error[$key] = array(
+                    $this->errors[$key] = array(
                         'name' => $name,
                         'error' => 'Invalid height'
                     );
@@ -326,7 +326,7 @@ class Uploader
 
         if( ! move_uploaded_file($tmp, $dir . $newName))
         {
-            $this->error[$key] = array(
+            $this->errors[$key] = array(
                 'name' => $name,
                 'error' => 'Unable to upload the chosen file'
             );
