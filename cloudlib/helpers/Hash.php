@@ -3,7 +3,7 @@
  * Cloudlib
  *
  * @author      Sebastian Book <cloudlibframework@gmail.com>
- * @copyright   Copyright (c) 2011 Sebastian Book <cloudlibframework@gmail.com>
+ * @copyright   Copyright (c) 2012 Sebastian Book <cloudlibframework@gmail.com>
  * @license     MIT License (http://www.opensource.org/licenses/mit-license.php)
  */
 
@@ -14,7 +14,7 @@ use InvalidArgumentException;
 /**
  * The Hash class
  *
- * @copyright   Copyright (c) 2011 Sebastian Book <cloudlibframework@gmail.com>
+ * @copyright   Copyright (c) 2012 Sebastian Book <cloudlibframework@gmail.com>
  * @license     MIT License (http://www.opensource.org/licenses/mit-license.php)
  */
 class Hash
@@ -52,7 +52,7 @@ class Hash
             throw new InvalidArgumentException('The number of rounds has to be between 4-31');
         }
 
-        $secret = (static::$secret) ? static::$secret : $secret;
+        $secret = static::$secret ? static::$secret : $secret;
 
         $salt = sprintf('$2a$%02d$%s', $rounds, substr(base64_encode(sha1($salt . $secret)), 0, 22));
 
@@ -72,7 +72,7 @@ class Hash
      */
     public static function compare($hash, $value, $salt, $secret = null, $rounds = 12)
     {
-        $secret = (static::$secret) ? static::$secret : $secret;
+        $secret = static::$secret ? static::$secret : $secret;
 
         return (bool) (($new = static::create($value, $salt, $secret, $rounds)) == $hash);
     }

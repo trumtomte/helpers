@@ -3,7 +3,7 @@
  * Cloudlib
  *
  * @author      Sebastian Book <cloudlibframework@gmail.com>
- * @copyright   Copyright (c) 2011 Sebastian Book <cloudlibframework@gmail.com>
+ * @copyright   Copyright (c) 2012 Sebastian Book <cloudlibframework@gmail.com>
  * @license     MIT License (http://www.opensource.org/licenses/mit-license.php)
  */
 
@@ -16,7 +16,7 @@ use RuntimeException;
 /**
  * The Database class
  *
- * @copyright   Copyright (c) 2011 Sebastian Book <cloudlibframework@gmail.com>
+ * @copyright   Copyright (c) 2012 Sebastian Book <cloudlibframework@gmail.com>
  * @license     MIT License (http://www.opensource.org/licenses/mit-license.php)
  */
 class Database
@@ -40,8 +40,8 @@ class Database
     {
         $driverOptions = array(
             PDO::ATTR_PERSISTENT => $settings['persistent'],
-            PDO::MYSQL_ATTR_INIT_COMMAND => sprintf('SET NAMES %s', $settings['charset']
-        ));
+            PDO::MYSQL_ATTR_INIT_COMMAND => sprintf('SET NAMES %s', $settings['charset'])
+        );
 
         try
         {

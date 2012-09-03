@@ -3,7 +3,7 @@
  * Cloudlib
  *
  * @author      Sebastian Book <cloudlibframework@gmail.com>
- * @copyright   Copyright (c) 2011 Sebastian Book <cloudlibframework@gmail.com>
+ * @copyright   Copyright (c) 2012 Sebastian Book <cloudlibframework@gmail.com>
  * @license     MIT License (http://www.opensource.org/licenses/mit-license.php)
  */
 
@@ -12,7 +12,7 @@ namespace cloudlib\helpers;
 /**
  * The Session class
  *
- * @copyright   Copyright (c) 2011 Sebastian Book <cloudlibframework@gmail.com>
+ * @copyright   Copyright (c) 2012 Sebastian Book <cloudlibframework@gmail.com>
  * @license     MIT License (http://www.opensource.org/licenses/mit-license.php)
  */
 class Session
@@ -43,7 +43,7 @@ class Session
      */
     public function name($name = null)
     {
-        return ($name) ? session_name($name) : session_name();
+        return $name ? session_name($name) : session_name();
     }
 
     /**
@@ -55,7 +55,7 @@ class Session
      */
     public function id($id = null)
     {
-        return ($id) ? session_id($id) : session_id();
+        return $id ? session_id($id) : session_id();
     }
 
     /**
@@ -103,7 +103,7 @@ class Session
      */
     public function get($key)
     {
-        return (isset($_SESSION[$key])) ? $_SESSION[$key] : null;
+        return isset($_SESSION[$key]) ? $_SESSION[$key] : null;
     }
 
     /**
@@ -205,7 +205,7 @@ class Session
      */
     public function __get($key)
     {
-        return (isset($_SESSION[$key])) ? $_SESSION[$key] : null;
+        return isset($_SESSION[$key]) ? $_SESSION[$key] : null;
     }
 
     /**
