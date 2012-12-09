@@ -20,6 +20,25 @@ use RuntimeException;
 class Logger
 {
     /**
+     * Array of available serverity levels
+     *
+     * @access  protected
+     * @var     array
+     */
+    protected $severity = array(
+        0 => 'DEBUG',
+        1 => 'INFO',
+        2 => 'WARNING',
+        3 => 'ERROR',
+        4 => 'FATAL',
+        'DEBUG' => 'DEBUG',
+        'INFO' => 'INFO',
+        'WARNING' => 'WARNING',
+        'ERROR' => 'ERROR',
+        'FATAL' => 'FATAL'
+    );
+
+    /**
      * The file the logs will be written to
      *
      * @access  protected
@@ -36,9 +55,7 @@ class Logger
     protected $messages = array();
 
     /**
-     * Set the file that logs will be written to at object creation
-     *
-     * Define wether ot not we will run write() at shutdown
+     * Set the file that logs will be written to.
      *
      * @access  public
      * @param   string  $file       The filename
@@ -74,22 +91,22 @@ class Logger
      * @param   string|int      $severity   The level of severity (ex DEBUG or 0)
      * @return  void
      */
-    public function log($message, $severity = 0)
+    public function log($message, $level = 0)
     {
-        $severity = $this->getLevel($severity);
+        $level = in_array($level, $this->severity) ? $level : 0;
 
         if(is_array($message))
         {
             foreach($message as $value)
             {
-                $this->messages[] = sprintf('[%s][%s]: %s', date('Y-m-d G:i:s'),
-                    $severity, $value);
+                $this->messages[] = sprintf('[%s][%s]: %s',
+                    date('Y-m-d G:i:s'), $this->severity[$level], $value);
             }
         }
         else
         {
-            $this->messages[] = sprintf('[%s][%s]: %s', date('Y-m-d G:i:s'), $severity,
-                $message);
+            $this->messages[] = sprintf('[%s][%s]: %s',
+                date('Y-m-d G:i:s'), $this->severity[$level], $message);
         }
     }
 
@@ -124,40 +141,8 @@ class Logger
                 throw new RuntimeException(sprintf('Unable to write to the logfile [%s]',
                     $file));
             }
-            return true;
-        }
-    }
 
-    /**
-     * Returns the severity level as a string
-     *
-     * @access  protected
-     * @param   int         $level  The severity level as a string (DEBUG) or int (0)
-     * @return  string              The severity level returned as a string in uppercase
-     */
-    protected function getLevel($level = 0)
-    {
-        switch($level)
-        {
-            case 0:
-            case 'DEBUG':
-                return 'DEBUG';
-                break;
-            case 1:
-            case 'INFO':
-                return 'INFO';
-                break;
-            case 2:
-            case 'WARNING':
-                return 'WARNING';
-                break;
-            case 3:
-            case 'ERROR':
-                return 'ERROR';
-                break;
-            default:
-                return 'DEBUG';
-                break;
+            return true;
         }
     }
 
@@ -174,7 +159,7 @@ class Logger
     }
 
     /**
-     * Log a info message
+     * Log an info message
      *
      * @access  public
      * @param   string|array    $message    The message, or an array of messages
@@ -198,7 +183,7 @@ class Logger
     }
 
     /**
-     * Log a error message
+     * Log an error message
      *
      * @access  public
      * @param   string|array    $message    The message, or an array of messages
@@ -207,6 +192,18 @@ class Logger
     public function error($message)
     {
         $this->log($message, 3);
+    }
+
+    /**
+     * Log a fatal error message
+     *
+     * @access  public
+     * @param   string|array    $message    The message, or an array of messages
+     * @return  void
+     */
+    public function fatal($message)
+    {
+        $this->log($message, 4);
     }
 
     /**
