@@ -9,628 +9,474 @@
 
 namespace cloudlib\helpers;
 
+use ReflectionMethod;
+use RuntimeException;
+
 /**
- * The Form class
+ * The Form Class
  *
  * @copyright   Copyright (c) 2012 Sebastian Book <cloudlibframework@gmail.com>
  * @license     MIT License (http://www.opensource.org/licenses/mit-license.php)
  */
-class Form
+abstract class Form
 {
     /**
-     * String containing the created form
+     * Security token for validation
      *
-     * @access  protected
+     * @access  public
      * @var     string
      */
-    protected $form = null;
+    public $token = null;
 
     /**
-     * Constructor, open up a new form
+     * Array of request arguments
      *
      * @access  public
-     * @param   string  $action     Form action value
-     * @param   array   $options    Array of form options (ex method/enctype etc)
+     * @var     array
+     */
+    public $arguments = null;
+
+    /**
+     * Current classname
+     *
+     * @access  public
+     * @var     string
+     */
+    public $classname = null;
+
+    /**
+     * Set the request arguments, set the security token
+     *
+     * @access  public
+     * @param   array   $arguments  The request arguments
+     * @param   string  $token      The security token
      * @return  void
      */
-    public function __construct($action = null, array $options = array())
+    public function __construct($arguments, $token = null)
     {
-        $this->form = static::open($action, $options);
+        $this->token = $token;
+        $this->arguments = $arguments;
+        
+        $classname = explode('\\', get_class($this));
+        $this->classname = end($classname);
     }
 
     /**
-     * Open the form
+     * Magic method that checks if a property has been defined,
+     * then checks if the corresponding fieldtype method exists,
+     * then invokes it with all the arguments
      *
      * @access  public
-     * @param   string  $action     Form action value
-     * @param   array   $options    Array of form options (ex method/enctype etc)
-     * @return  string              Returns the opening element of a form
+     * @param   string  $name       The name of the property
+     * @param   array   $arguments  The fieldtype method arguments
+     * @return  string              Returns the HTML form element(s)
      */
-    public static function open($action = null, array $options = array())
+    public function __call($name, $arguments = array())
     {
-        $options['action'] = $action;
-
-        if( ! isset($options['method']))
+        if(isset($this->$name))
         {
-            $options['method'] = 'POST';
+            $method = $this->$name . 'Field';
+
+            if(method_exists($this, $method))
+            {
+                $reflection = new ReflectionMethod($this, $method);
+                array_unshift($arguments, $name);
+
+                return $reflection->invokeArgs($this, $arguments);
+            }
+        }
+    }
+
+    /**
+     * Validate the form, call validate methods if they exist
+     *
+     * @acceess public
+     * @throws  RuntimeException    If the validation fails
+     * @return  boolean
+     */
+    public function validate()
+    {
+        if( ! isset($this->arguments[$this->classname]))
+        {
+            return false;
         }
 
-        if(isset($options['type']))
+        $args = $this->arguments[$this->classname];
+
+        if($args['token'] !== $this->token)
         {
-            switch($options['type'])
+            return false;
+        }
+
+        $validators = preg_grep('/^(validate)\w+/', get_class_methods($this));
+
+        foreach($validators as $validator)
+        {
+            if(method_exists($this, $validator))
+            {
+                $field = str_replace('validate', '', strtolower($validator));
+
+                if( ! isset($args[$field]))
+                {
+                    return false;
+                }
+
+                $message = 'Form validation error';
+
+                $validated = $this->$validator($args[$field], $message);
+
+                if( ! $validated)
+                {
+                    throw new RuntimeException($message);
+                }
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Gets an array of all the current accessible properties and their values
+     *
+     * @access  public
+     * @return  array
+     */
+    public function getFields()
+    {
+        $properties = array_flip(
+            preg_grep('/^(?!token|arguments|classname)/',
+                array_keys(get_object_vars($this))
+        ));
+
+        $args = $this->arguments[$this->classname];
+
+        foreach($properties as $key => $value)
+        {
+            $properties[$key] = isset($args[$key]) ? $args[$key] : '';
+        }
+
+        return $properties;
+    }
+
+    /**
+     * Get the value of a property
+     *
+     * @access  public
+     * @param   string  $name   The name of the property
+     * @return  mixed           Returns the property value else false
+     */
+    public function getField($name)
+    {
+        $args = $this->arguments[$this->classname];
+
+        return isset($args[$name]) ? $args[$name] : false;
+    }
+
+    /**
+     * Get the value for the name attribute of the HTML element
+     *
+     * @access  public
+     * @param   string  $name   The name of the HTML element
+     * @return  string          Returns the converted name of the HTML element
+     */
+    public function fieldName($name)
+    {
+        return sprintf('%s[%s]', $this->classname, $name);
+    }
+
+    /**
+     * Returns the opening HTML element of the form
+     *
+     * @access  public
+     * @param   string  $action     The form action
+     * @param   string  $method     The form method
+     * @param   array   $attributes Array of HTML attributes
+     * @return  string              The HTML element
+     */
+    public function open($action = null, $method = null, array $attributes = array())
+    {
+        $attributes['action'] = $action;
+
+        $attributes['method'] = ($method === null) ? 'POST' : $method;
+
+        if(isset($attributes['type']))
+        {
+            switch($attributes['type'])
             {
                 case 'file':
-                    $options['enctype'] = 'multipart/form-data';
+                    $attributes['enctype'] = 'multipart/form-data';
                     break;
                 default:
-                    $options['enctype'] = 'application/x-www-form-urlencoded';
+                    $attributes['enctype'] = 'application/x-www-form-urlencoded';
                     break;
             }
-            unset($options['type']);
+
+            unset($attributes['type']);
         }
 
-        $attributes = static::getAttrStr($options);
-
-        return sprintf('<form %s>' . PHP_EOL, $attributes);
+        return sprintf('<form %s>%s',
+            $this->getAttrStr($attributes),
+            $this->inputField('token', array('type' => 'hidden', 'value' => $this->token))
+        );
     }
 
     /**
-     * Create an input field
-     *
+     * Returns an input HTML element
+     * 
      * @access  public
-     * @param   string  $name       Input name value
-     * @param   array   $options    Array of input options (ex type/class etc)
-     * @return  string              Returns an input element
+     * @param   string  $name       The element name
+     * @param   array   $attributes Array of HTML attributes
+     * @return  string              The HTML element
      */
-    public static function input($name = null, array $options = array())
+    public function inputField($name, array $attributes = array())
     {
-        $options['name'] = $name;
+        $attributes['name'] = $this->fieldName($name);
 
-        if( ! isset($options['type']))
+        if( ! isset($attributes['type']))
         {
-            $options['type'] = 'text';
+            $attributes['type'] = 'text';
         }
 
-        if($options['name'] === null)
-        {
-            $options['name'] = $options['type'];
-        }
+        $attrString = $this->getAttrStr($attributes);
 
-        $label = null;
-
-        if(isset($options['label']))
-        {
-            $label = static::label($options['name'], $options['label']);
-            unset($options['label']);
-        }
-
-        $attributes = static::getAttrStr($options);
-
-        return sprintf('%s<input %s/>' . PHP_EOL, $label, $attributes);
+        return sprintf('<input %s>', $attrString);
     }
 
     /**
-     * Create an input field with the type 'submit'
+     * Shorthand method for Form::inputField()
      *
      * @access  public
-     * @param   string  $name       Input name value
-     * @param   array   $options    Array of input options (ex type/class etc)
-     * @return  string              Returns an input element
+     * @param   string  $name       The element name
+     * @param   array   $attributes Array of HTML attributes
+     * @return  string              The HTML element
      */
-    public static function submit($name = null, array $options = array())
+    public function textField($name = null, array $attributes = array())
     {
-        $options['type'] = 'submit';
-        return static::input($name, $options);
+        return $this->inputField($name, $attributes);
     }
 
     /**
-     * Create an input field with the type 'password'
+     * Shorthand method for Form::inputField()
      *
      * @access  public
-     * @param   string  $name       Input name value
-     * @param   array   $options    Array of input options (ex type/class etc)
-     * @return  string              Returns an input element
+     * @param   string  $name       The element name
+     * @param   array   $attributes Array of HTML attributes
+     * @return  string              The HTML element
      */
-    public static function password($name = null, array $options = array())
+    public function submitField($name = null, array $attributes = array())
     {
-        $options['type'] = 'password';
-        return static::input($name, $options);
+        $attributes['type'] = 'submit';
+        return $this->inputField($name, $attributes);
     }
 
     /**
-     * Create an input field with the type 'radio'
+     * Shorthand method for Form::inputField()
      *
      * @access  public
-     * @param   string  $name       Input name value
-     * @param   array   $options    Array of input options (ex type/class etc)
-     * @return  string              Returns an input element
+     * @param   string  $name       The element name
+     * @param   array   $attributes Array of HTML attributes
+     * @return  string              The HTML element
      */
-    public static function radio($name = null, array $options = array())
+    public function passwordField($name = null, array $attributes = array())
     {
-        $options['type'] = 'radio';
-        return static::input($name, $options);
+        $attributes['type'] = 'password';
+        return $this->inputField($name, $attributes);
     }
 
     /**
-     * Create an input field with the type 'checkbox'
+     * Shorthand method for Form::inputField()
      *
      * @access  public
-     * @param   string  $name       Input name value
-     * @param   array   $options    Array of input options (ex type/class etc)
-     * @return  string              Returns an input element
+     * @param   string  $name       The element name
+     * @param   array   $attributes Array of HTML attributes
+     * @return  string              The HTML element
      */
-    public static function checkbox($name = null, array $options = array())
+    public function radioField($name = null, array $attributes = array())
     {
-        $options['type'] = 'checkbox';
-        return static::input($name, $options);
+        $attributes['type'] = 'radio';
+        return $this->inputField($name, $attributes);
     }
 
     /**
-     * Create an input field with the type 'reset'
+     * Shorthand method for Form::inputField()
      *
      * @access  public
-     * @param   string  $name       Input name value
-     * @param   array   $options    Array of input options (ex type/class etc)
-     * @return  string              Returns an input element
+     * @param   string  $name       The element name
+     * @param   array   $attributes Array of HTML attributes
+     * @return  string              The HTML element
      */
-    public static function reset($name = null, array $options = array())
+    public function checkboxField($name = null, array $attributes = array())
     {
-        $options['type'] = 'reset';
-        return static::input($name, $options);
+        $attributes['type'] = 'checkbox';
+        return $this->inputField($name, $attributes);
     }
 
     /**
-     * Create an input field with the type 'hidden'
+     * Shorthand method for Form::inputField()
      *
      * @access  public
-     * @param   string  $name       Input name value
-     * @param   array   $options    Array of input options (ex type/class etc)
-     * @return  string              Returns an input element
+     * @param   string  $name       The element name
+     * @param   array   $attributes Array of HTML attributes
+     * @return  string              The HTML element
      */
-    public static function hidden($name = null, array $options = array())
+    public function resetField($name = null, array $attributes = array())
     {
-        $options['type'] = 'hidden';
-        return static::input($name, $options);
+        $attributes['type'] = 'reset';
+        return $this->inputField($name, $attributes);
     }
 
     /**
-     * Create an input field with the type 'file'
+     * Shorthand method for Form::inputField()
      *
      * @access  public
-     * @param   string  $name       Input name value
-     * @param   array   $options    Array of input options (ex type/class etc)
-     * @return  string              Returns an input element
+     * @param   string  $name       The element name
+     * @param   array   $attributes Array of HTML attributes
+     * @return  string              The HTML element
      */
-    public static function file($name = null, array $options = array())
+    public function hiddenField($name = null, array $attributes = array())
     {
-        $options['type'] = 'file';
-        return static::input($name, $options);
+        $attributes['type'] = 'hidden';
+        return $this->inputField($name, $attributes);
     }
 
     /**
-     * Shorthand function for creating a csrf token
+     * Shorthand method for Form::inputField()
      *
      * @access  public
-     * @param   string  $value      Input name value
-     * @param   string  $name       Input value
-     * @param   array   $options    Array of input options (ex type/class etc)
-     * @return  string              Returns an input element
+     * @param   string  $name       The element name
+     * @param   array   $attributes Array of HTML attributes
+     * @return  string              The HTML element
      */
-    public static function token($value, $name = 'token', array $options = array())
+    public function fileField($name = null, array $attributes = array())
     {
-        $options['type'] = 'hidden';
-        $options['value'] = $value;
-        return static::input($name, $options);
+        $attributes['type'] = 'file';
+        return $this->inputField($name, $attributes);
     }
 
     /**
-     * Create a button element
+     * Shorthand method for Form::inputField()
      *
      * @access  public
-     * @param   string  $name       Button name value
-     * @param   string  $text       Button content
-     * @param   array   $options    Array of button options (ex type/class etc)
-     * @return  string              Return an button element
+     * @param   string  $name       The element name
+     * @param   array   $attributes Array of HTML attributes
+     * @return  string              The HTML element
      */
-    public static function button($name = null, $text = null, array $options = array())
+    public function uploadField($name = null, array $attributes = array())
     {
-        $options['name'] = $name;
+        $attributes['type'] = 'file';
+        return $this->inputField($name, $attributes);
+    }
 
-        if( ! isset($options['type']))
+    /**
+     * Returns an textarea HTML element
+     *
+     * @access  public
+     * @param   string  $name       The element name
+     * @param   string  $text       The contents of the textarea
+     * @param   array   $attributes Array of HTML attributes
+     * @return  string              The HTML element
+     */
+    public function textareaField($name, $text = null, array $attributes = array())
+    {
+        $attributes['name'] = $this->fieldName($name);
+
+        if( ! isset($attributes['rows']))
         {
-            $options['type'] = 'submit';
+            $attributes['rows'] = 8;
         }
 
-        if($options['name'] === null)
+        if( ! isset($attributes['cols']))
         {
-            $options['name'] = $options['type'];
+            $attributes['cols'] = 25;
         }
 
-        if($text === null)
-        {
-            $text = $options['name'];
-        }
+        $attributes = $this->getAttrStr($attributes);
 
-        $label = null;
-
-        if(isset($options['label']))
-        {
-            $label = static::label($options['name'], $options['label']);
-            unset($options['label']);
-        }
-
-        $attributes = static::getAttrStr($options);
-
-        return sprintf('%s<button %s>%s</button>' . PHP_EOL, $label, $attributes, $text);
+        return sprintf('<textarea %s>%s</textarea>', $attributes, $text);
     }
 
     /**
-     * Create a textarea element
+     * Returns a select field HTML element
      *
      * @access  public
-     * @param   string  $name       Textarea name value
-     * @param   string  $text       Textarea content
-     * @param   array   $options    Array of textarea options (ex row/cols etc)
-     * @return  string              Returns a textarea element
+     * @param   string  $name       The element name
+     * @param   array   $items      Array of option elements (can be 2 dimensional)
+     * @param   array   $attributes Array of HTML attributes
+     * @return  string              The HTML element
      */
-    public static function textarea($name = null, $text = null, array $options = array())
+    public function selectField($name = null, array $items = array(), array $attributes = array())
     {
-        $options['name'] = $name;
-
-        if($options['name'] === null)
-        {
-            $options['name'] = 'textarea';
-        }
-
-        if( ! isset($options['rows']))
-        {
-            $options['rows'] = 8;
-        }
-        if( ! isset($options['cols']))
-        {
-            $options['cols'] = 25;
-        }
-
-        $label = null;
-
-        if(isset($options['label']))
-        {
-            $label = static::label($options['name'], $options['label']);
-            unset($options['label']);
-        }
-
-        $attributes = static::getAttrStr($options);
-
-        return sprintf('%s<textarea %s>%s</textarea>' . PHP_EOL,
-            $label, $attributes, $text);
-    }
-
-    /**
-     * Create a dropdown list (<select>)
-     *
-     * @access  public
-     * @param   string  $name       Select name value
-     * @param   array   $items      Select option items
-     * @param   array   $options    Array of select options (ex class/id etc)
-     * @return  string              Returns a select element
-     */
-    public static function select($name = null, array $items = array(), array $options = array())
-    {
-        $options['name'] = $name;
-
-        if($options['name'] === null)
-        {
-            $options['name'] = 'select';
-        }
+        $attributes['name'] = $this->fieldName($name);
 
         $selectList = null;
 
-        foreach($items as $key => $value)
+        foreach($items as $key => $item)
         {
-            if(is_array($value))
+            if(is_array($item))
             {
-                $selectList .= sprintf('<optgroup label="%s">' . PHP_EOL, $key);
+                $selectList .= sprintf('<optgroup label="%s">', $key);
 
-                foreach($value as $k => $v)
+                foreach($item as $key => $item)
                 {
-                    $selectList .= sprintf('<option value="%s">%s</option>' . PHP_EOL,
-                        $k, $v);
+                    $selectList .= sprintf('<option value="%s">%s</option>',
+                        $key, $item);
                 }
 
-                $selectList .= '</optgroup>' . PHP_EOL;
+                $selectList .= '</optgroup>';
             }
             else
             {
-                $selectList .= sprintf('<option value="%s">%s</option>' . PHP_EOL,
-                    $key, $value);
+                $selectList .= sprintf('<option value="%s">%s</option>',
+                    $key, $item);
             }
         }
 
-        $label = null;
+        $attributes = $this->getAttrStr($attributes);
 
-        if(isset($options['label']))
+        return sprintf('<select %s>%s</select>', $attributes, $selectList);
+    }
+
+    /**
+     * Returns a button HTML element
+     *
+     * @access  public
+     * @param   string  $name       The element name
+     * @param   string  $value      The button text
+     * @param   array   $attributes Array of HTML attributes
+     * @return  string              The HTML element
+     */
+    public function buttonField($name = null, $value = null, array $attributes = array())
+    {
+        $attributes['name'] = $this->fieldName($name);
+
+        if( ! isset($attributes['type']))
         {
-            $label = static::label($options['name'], $options['label']);
-            unset($options['label']);
+            $attributes['type'] = 'submit';
         }
 
-        $attributes = static::getAttrStr($options);
+        $value = ($value === null) ? 'Submit' : $value;
 
-        return sprintf('%s<select %s>' . PHP_EOL . '%s</select>' . PHP_EOL,
-            $label, $attributes, $selectList);
+        $attributes = $this->getAttrStr($attributes);
+
+        return sprintf('<button %s>%s</button>', $attributes, $value);
     }
 
     /**
-     * Create a label element
+     * Gets an string of attribute:value pairs
      *
      * @access  public
-     * @param   string  $for        For value (label)
-     * @param   string  $text       Label content
-     * @param   array   $options    Array of label options (ex class/id etc)
-     * @return  string              Returns a label element
+     * @param   array   $attributes Array of attribute:value pairs
+     * @return  string              The string of attribute:value pairs
      */
-    public static function label($for = null, $text = null, array $options = array())
+    public function getAttrStr(array $attributes)
     {
-        $options['for'] = $for;
-
-        if($text === null)
-        {
-            $text = $options['for'];
-        }
-
-        $attributes = static::getAttrStr($options);
-
-        return sprintf('<label %s>%s</label>' . PHP_EOL, $attributes, $text);
-    }
-
-    /**
-     * End a form, and (optional) close it with a button element
-     *
-     * @access  public
-     * @param   string  $name       Button name value
-     * @param   string  $text       Button content
-     * @param   array   $options    Array of button options (ex type/class etc)
-     * @return  string              Return the closing tag of the form and (optional) a button element
-     */
-    public static function close($name = null, $text = null, array $options = array())
-    {
-        if(func_num_args() == 0)
-        {
-            return '</form>' . PHP_EOL;
-        }
-
-        $options['type'] = 'submit';
-        return sprintf('%s</form>' . PHP_EOL, static::button($name, $text, $options));
-    }
-
-    /**
-     * Create an input field
-     *
-     * @access  public
-     * @param   string  $name       Input name value
-     * @param   array   $options    Array of input options (ex type/class etc)
-     * @return  object              Returns an input element
-     */
-    public function addInput($name = null, array $options = array())
-    {
-        $this->form .= static::input($name, $options);
-        return $this;
-    }
-
-    /**
-     * Create an input field with the type 'submit'
-     *
-     * @access  public
-     * @param   string  $name       Input name value
-     * @param   array   $options    Array of input options (ex type/class etc)
-     * @return  object              Returns an input element
-     */
-    public function addSubmit($name = null, array $options = array())
-    {
-        $this->form .= static::submit($name, $options);
-        return $this;
-    }
-
-    /**
-     * Create an input field with the type 'password'
-     *
-     * @access  public
-     * @param   string  $name       Input name value
-     * @param   array   $options    Array of input options (ex type/class etc)
-     * @return  object              Returns an input element
-     */
-    public function addPassword($name = null, array $options = array())
-    {
-        $this->form .= static::password($name, $options);
-        return $this;
-    }
-
-    /**
-     * Create an input field with the type 'radio'
-     *
-     * @access  public
-     * @param   string  $name       Input name value
-     * @param   array   $options    Array of input options (ex type/class etc)
-     * @return  object              Returns an input element
-     */
-    public function addRadio($name = null, array $options = array())
-    {
-        $this->form .= static::radio($name, $options);
-        return $this;
-    }
-
-    /**
-     * Create an input field with the type 'checkbox'
-     *
-     * @access  public
-     * @param   string  $name       Input name value
-     * @param   array   $options    Array of input options (ex type/class etc)
-     * @return  object              Returns an input element
-     */
-    public function addCheckbox($name = null, array $options = array())
-    {
-        $this->form .= static::checkbox($name, $options);
-        return $this;
-    }
-
-    /**
-     * Create an input field with the type 'reset'
-     *
-     * @access  public
-     * @param   string  $name       Input name value
-     * @param   array   $options    Array of input options (ex type/class etc)
-     * @return  object              Returns an input element
-     */
-    public function addReset($name = null, array $options = array())
-    {
-        $this->form .= static::reset($name, $options);
-        return $this;
-    }
-
-    /**
-     * Create an input field with the type 'hidden'
-     *
-     * @access  public
-     * @param   string  $name       Input name value
-     * @param   array   $options    Array of input options (ex type/class etc)
-     * @return  object              Returns an input element
-     */
-    public function addHidden($name = null, array $options = array())
-    {
-        $this->form .= static::hidden($name, $options);
-        return $this;
-    }
-
-    /**
-     * Create an input field with the type 'file'
-     *
-     * @access  public
-     * @param   string  $name       Input name value
-     * @param   array   $options    Array of input options (ex type/class etc)
-     * @return  object              Returns an input element
-     */
-    public function addFile($name = null, array $options = array())
-    {
-        $this->form .= static::file($name, $options);
-        return $this;
-    }
-
-    /**
-     * Shorthand function for creating a csrf token
-     *
-     * @access  public
-     * @param   string  $value      Input name value
-     * @param   string  $name       Input value
-     * @param   array   $options    Array of input options (ex type/class etc)
-     * @return  object              Returns an input element
-     */
-    public function addToken($value, $name = 'token', array $options = array())
-    {
-        $this->form .= static::token($value, $name, $options);
-        return $this;
-    }
-
-    /**
-     * Create a button
-     *
-     * @access  public
-     * @param   string  $name       Button name value
-     * @param   string  $text       Button content
-     * @param   array   $options    Array of button options (ex type/class etc)
-     * @return  object              Return an button element
-     */
-    public function addButton($name = null, $text = null, array $options = array())
-    {
-        $this->form .= static::button($name, $text, $options);
-        return $this;
-    }
-
-    /**
-     * Create a textarea element
-     *
-     * @access  public
-     * @param   string  $name       Textarea name value
-     * @param   string  $text       Textarea content
-     * @param   array   $options    Array of textarea options (ex row/cols etc)
-     * @return  object              Returns a textarea element
-     */
-    public function addTextarea($name = null, $text = null, array $options = array())
-    {
-        $this->form .= static::textarea($name, $text, $options);
-        return $this;
-    }
-
-    /**
-     * Create a dropdown list (<select>)
-     *
-     * @access  public
-     * @param   string  $name       Select name value
-     * @param   array   $items      Select option items
-     * @param   array   $options    Array of select options (ex class/id etc)
-     * @return  object              Returns a select element
-     */
-    public function addSelect($name = null, array $items = array(), array $options = array())
-    {
-        $this->form .= static::select($name, $items, $options);
-        return $this;
-    }
-
-    /**
-     * Create a label element
-     *
-     * @access  public
-     * @param   string  $for        For value (label)
-     * @param   string  $text       Label content
-     * @param   array   $options    Array of label options (ex class/id etc)
-     * @return  object              Returns a label element
-     */
-    public function addLabel($for = null, $text = null, array $options = array())
-    {
-        $this->form .= static::label($for, $text, $options);
-        return $this;
-    }
-
-    /**
-     * End a form, with the possibility for a button field
-     *
-     * @access  public
-     * @param   string  $name       Button name value
-     * @param   string  $text       Button content
-     * @param   array   $options    Array of button options (ex type/class etc)
-     * @return  object              Return the closing tag of the form and (optional) a button element
-     */
-    public function closeForm($name = null, $text = null, array $options = array())
-    {
-        $this->form .= static::close($name, $text, $options);
-    }
-
-    /**
-     * Return the whole form
-     *
-     * @access  public
-     * @return  string  Returns the form as a string
-     */
-    public function __toString()
-    {
-        return (string) $this->form;
-    }
-
-    /**
-     * Take an array of attributes and return it as a string of HTML attribute:value pairs
-     *
-     * @access  protected
-     * @param   array       $attributes     Array of attribute:value pairs
-     * @return  string                      Returns a string of attribute:value pairs
-     */
-    protected static function getAttrStr(array $attributes)
-    {
-        $string = null;
+        $attributeString = '';
 
         foreach($attributes as $key => $value)
         {
-            $string .= sprintf('%s="%s" ', $key, $value);
+            $attributeString .= sprintf('%s="%s" ', $key, $value);
         }
 
-        return $string;
+        return trim($attributeString);
     }
 }
