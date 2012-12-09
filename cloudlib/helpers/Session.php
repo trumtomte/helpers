@@ -9,16 +9,28 @@
 
 namespace cloudlib\helpers;
 
+use ArrayAccess;
+
 /**
  * The Session class
  *
  * @copyright   Copyright (c) 2012 Sebastian Book <cloudlibframework@gmail.com>
  * @license     MIT License (http://www.opensource.org/licenses/mit-license.php)
  */
-class Session
+class Session implements ArrayAccess
 {
     /**
-     * Define the session name at object creation (optional)
+     * Name of the session token used for security
+     *
+     * @access  public
+     * @var     string
+     */
+    public $token = 'token';
+
+    /**
+     * Start the session.
+     * Define the session name.
+     * Generate a session token if it does not exist.
      *
      * @access  public
      * @param   string  $name   The session name
@@ -31,6 +43,11 @@ class Session
         if($name)
         {
             session_name($name);
+        }
+
+        if( ! $this->has($this->token))
+        {
+            $this->generate();
         }
     }
 
@@ -134,12 +151,11 @@ class Session
      * Get the session token
      *
      * @access  public
-     * @param   string  $token  The session token identifier
      * @return  string          The session token value
      */
-    public function token($token = 'token')
+    public function token()
     {
-        return $this->get($token);
+        return $_SESSION[$this->token];
     }
 
     /**
@@ -149,22 +165,21 @@ class Session
      * @param   string  $token  The session token identifier
      * @return  void
      */
-    public function generate($token = 'token')
+    public function generate()
     {
-        $_SESSION[$token] = sha1(time() . uniqid(rand(), true));
+        $_SESSION[$this->token] = sha1(time() . uniqid(rand(), true));
     }
 
     /**
-     * Compare a value to the session token
+     * Validate the session token
      *
      * @access  public
-     * @param   string  $input  The input value
-     * @param   string  $token  The session token identifier
-     * @return  boolean         Return true if it is the same, else false
+     * @param   string  $token  The input token
+     * @return  boolean         Return true if it is the same
      */
-    public function compare($input, $token = 'token')
+    public function validate($token)
     {
-        return (bool) ($input == $this->token($token));
+        return (bool) ($token == $_SESSION[$this->token]);
     }
 
     /**
@@ -176,11 +191,11 @@ class Session
      * @param   string  $token  The session token name
      * @return  void
      */
-    public function refresh($token = 'token')
+    public function refresh()
     {
         session_regenerate_id(true);
         session_unset();
-        $this->generate($token);
+        $this->generate();
     }
 
     /**
@@ -228,6 +243,55 @@ class Session
      * @return  void
      */
     public function __unset($key)
+    {
+        unset($_SESSION[$key]);
+    }
+
+    /**
+     * Define an array property
+     *
+     * @access  public
+     * @param   string  $key    The variable identifier (name)
+     * @param   mixed   $value  The variable value
+     * @return  void
+     */
+    public function offsetSet($key, $value)
+    {
+        $_SESSION[$key] = $value;
+    }
+
+    /**
+     * Get an array property
+     *
+     * @access  public
+     * @param   string  $key    The variable identifier
+     * @return  mixed           Return the variable
+     */
+    public function offsetGet($key)
+    {
+        return isset($_SESSION[$key]) ? $_SESSION[$key] : null;
+    }
+
+    /**
+     * Check if an array property has been set
+     *
+     * @access  public
+     * @param   string  $key    The variable identifier
+     * @return  boolean         Return true if it is set
+     */
+    public function offsetExists($key)
+    {
+        return (bool) isset($_SESSION[$key]);
+    }
+
+    /**
+     * Unset an array property
+     *
+     * @access  public
+     * @param   string  $key    The variable identifier
+     * @return  void
+     */
+    public function offsetUnset($key)
     {
         unset($_SESSION[$key]);
     }
