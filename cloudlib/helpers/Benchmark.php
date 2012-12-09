@@ -67,9 +67,7 @@ class Benchmark
      */
     public static function get($name, $decimals = 5)
     {
-        static::stop($name);
-
-        return (float) round((static::$times[$name]['stop'] - static::$times[$name]['start']), $decimals);
+        return static::compare(static::$times[$name]['start'], $decimals);
     }
 
     /**
