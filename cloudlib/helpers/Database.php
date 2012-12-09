@@ -30,22 +30,65 @@ class Database
     public $connection;
 
     /**
-     * Initiate the database connection (via PDO) at object creation
+     * Array of settins for connecting to the database 
      *
      * @access  public
-     * @param   array   $settings   Array of database settings (username, password etc)
+     * @var     array
+     */
+    public $settings = array();
+
+    /**
+     * Set the settings array, connect to the database 
+     *
+     * @access  public
+     * @param   array   $settings   Array of database settings
+     * @param   boolean $connect    If we should connect at object creation or not
      * @return  void
      */
-    public function __construct(array $settings)
+    public function __construct($settings, $connect = true)
+    {
+        if(is_string($settings))
+        {
+            extract(parse_url($settings));
+
+            $settings = array(
+                'dsn' => sprintf('%s:host=%s;port=%s;dbname=%s',
+                    $scheme, $host, $port, trim($path, '/')),
+                'username' => $user,
+                'password' => $pass
+            );
+        }
+
+        $this->settings = $settings;
+
+        if($connect)
+        {
+            $this->connect();
+        }
+    }
+
+    /**
+     * Make a connectio to the database
+     *
+     * @access  public
+     * @throws  RuntimeException    If the connection fails
+     * @return  void
+     */
+    public function connect()
     {
         $driverOptions = array(
-            PDO::ATTR_PERSISTENT => $settings['persistent'],
-            PDO::MYSQL_ATTR_INIT_COMMAND => sprintf('SET NAMES %s', $settings['charset'])
+            // PDO::ATTR_PERSISTENT => $this->settings['persistent'],
+            PDO::MYSQL_ATTR_INIT_COMMAND => 'SET NAMES utf8'
         );
 
         try
         {
-            $this->connection = new PDO($settings['dsn'], $settings['username'], $settings['password'], $driverOptions);
+            $this->connection = new PDO(
+                $this->settings['dsn'],
+                $this->settings['username'],
+                $this->settings['password'],
+                $driverOptions
+            );
             $this->connection->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
         }
         catch(PDOException $e)
