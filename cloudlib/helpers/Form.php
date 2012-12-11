@@ -230,8 +230,6 @@ abstract class Form
      */
     public function inputField($name, array $attributes = array())
     {
-        $attributes['name'] = $this->fieldName($name);
-
         if( ! isset($attributes['type']))
         {
             $attributes['type'] = 'text';
@@ -252,6 +250,7 @@ abstract class Form
      */
     public function textField($name = null, array $attributes = array())
     {
+        $attributes['name'] = $this->fieldName($name);
         return $this->inputField($name, $attributes);
     }
 
@@ -265,6 +264,7 @@ abstract class Form
      */
     public function submitField($name = null, array $attributes = array())
     {
+        $attributes['name'] = $this->fieldName($name);
         $attributes['type'] = 'submit';
         return $this->inputField($name, $attributes);
     }
@@ -279,6 +279,7 @@ abstract class Form
      */
     public function passwordField($name = null, array $attributes = array())
     {
+        $attributes['name'] = $this->fieldName($name);
         $attributes['type'] = 'password';
         return $this->inputField($name, $attributes);
     }
@@ -293,6 +294,7 @@ abstract class Form
      */
     public function radioField($name = null, array $attributes = array())
     {
+        $attributes['name'] = $this->fieldName($name);
         $attributes['type'] = 'radio';
         return $this->inputField($name, $attributes);
     }
@@ -307,6 +309,7 @@ abstract class Form
      */
     public function checkboxField($name = null, array $attributes = array())
     {
+        $attributes['name'] = $this->fieldName($name);
         $attributes['type'] = 'checkbox';
         return $this->inputField($name, $attributes);
     }
@@ -321,6 +324,7 @@ abstract class Form
      */
     public function resetField($name = null, array $attributes = array())
     {
+        $attributes['name'] = $this->fieldName($name);
         $attributes['type'] = 'reset';
         return $this->inputField($name, $attributes);
     }
@@ -335,6 +339,7 @@ abstract class Form
      */
     public function hiddenField($name = null, array $attributes = array())
     {
+        $attributes['name'] = $this->fieldName($name);
         $attributes['type'] = 'hidden';
         return $this->inputField($name, $attributes);
     }
@@ -349,6 +354,7 @@ abstract class Form
      */
     public function fileField($name = null, array $attributes = array())
     {
+        $attributes['name'] = $this->fieldName($name);
         $attributes['type'] = 'file';
         return $this->inputField($name, $attributes);
     }
@@ -363,6 +369,37 @@ abstract class Form
      */
     public function uploadField($name = null, array $attributes = array())
     {
+        $attributes['name'] = $this->fieldName($name);
+        $attributes['type'] = 'file';
+        return $this->inputField($name, $attributes);
+    }
+
+    /**
+     * Shorthand method for Form::inputField(), but for multiple files
+     *
+     * @access  public
+     * @param   string  $name       The element name
+     * @param   array   $attributes Array of HTML attributes
+     * @return  string              The HTML element
+     */
+    public function filesField($name = null, array $attributes = array())
+    {
+        $attributes['name'] = $this->fieldName($name) . '[]';
+        $attributes['type'] = 'file';
+        return $this->inputField($name, $attributes);
+    }
+
+    /**
+     * Shorthand method for Form::inputField(), but for multiple files
+     *
+     * @access  public
+     * @param   string  $name       The element name
+     * @param   array   $attributes Array of HTML attributes
+     * @return  string              The HTML element
+     */
+    public function uploadsField($name = null, array $attributes = array())
+    {
+        $attributes['name'] = $this->fieldName($name) . '[]';
         $attributes['type'] = 'file';
         return $this->inputField($name, $attributes);
     }
