@@ -474,7 +474,28 @@ abstract class Form
     }
 
     /**
-     * Returns a button HTML element
+     * Returns a button HTML element, of type submit
+     *
+     * @access  public
+     * @param   string  $name       The element name
+     * @param   string  $value      The button text
+     * @param   array   $attributes Array of HTML attributes
+     * @return  string              The HTML element
+     */
+    public function submitbuttonField($name = null, $value = null, array $attributes = array())
+    {
+        $attributes['name'] = $this->fieldName($name);
+        $attributes['type'] = 'submit';
+
+        $value = ($value === null) ? 'Submit' : $value;
+
+        $attributes = $this->getAttrStr($attributes);
+
+        return sprintf('<button %s>%s</button>', $attributes, $value);
+    }
+
+    /**
+     * Returns a button HTML element, of type button
      *
      * @access  public
      * @param   string  $name       The element name
@@ -485,13 +506,9 @@ abstract class Form
     public function buttonField($name = null, $value = null, array $attributes = array())
     {
         $attributes['name'] = $this->fieldName($name);
+        $attributes['type'] = 'button';
 
-        if( ! isset($attributes['type']))
-        {
-            $attributes['type'] = 'submit';
-        }
-
-        $value = ($value === null) ? 'Submit' : $value;
+        $value = ($value === null) ? 'Button' : $value;
 
         $attributes = $this->getAttrStr($attributes);
 
