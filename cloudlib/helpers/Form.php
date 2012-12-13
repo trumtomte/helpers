@@ -45,6 +45,21 @@ abstract class Form
     public $classname = null;
 
     /**
+     * Array of available types for <input> fields
+     *
+     * @access  public
+     * @var     array
+     */
+    public $inputfields = array(
+        'button', 'checkbox', 'color', 'date', 
+        'datetime', 'datetime-local', 'email',
+        'file', 'hidden', 'image', 'month',
+        'number', 'password', 'radio', 'range',
+        'reset', 'search', 'submit', 'tel', 'text',
+        'time', 'url', 'week'
+    );
+
+    /**
      * Set the request arguments, set the security token
      *
      * @access  public
@@ -75,14 +90,24 @@ abstract class Form
     {
         if(isset($this->$name))
         {
-            $method = $this->$name . 'Field';
-
-            if(method_exists($this, $method))
+            if(in_array($this->$name, $this->inputfields))
             {
-                $reflection = new ReflectionMethod($this, $method);
-                array_unshift($arguments, $name);
+                $attributes = is_array($arguments[0]) ? $arguments[0] : array();
+                $attributes['type'] = $this->$name;
 
-                return $reflection->invokeArgs($this, $arguments);
+                return $this->inputField($name, $attributes);
+            }
+            else
+            {
+                $method = $this->$name . 'Field';
+
+                if(method_exists($this, $method))
+                {
+                    $reflection = new ReflectionMethod($this, $method);
+                    array_unshift($arguments, $name);
+
+                    return $reflection->invokeArgs($this, $arguments);
+                }
             }
         }
     }
@@ -144,7 +169,7 @@ abstract class Form
     public function getFields()
     {
         $properties = array_flip(
-            preg_grep('/^(?!token|arguments|classname)/',
+            preg_grep('/^(?!token|arguments|classname|inputfields)/',
                 array_keys(get_object_vars($this))
         ));
 
@@ -230,148 +255,9 @@ abstract class Form
      */
     public function inputField($name, array $attributes = array())
     {
-        if( ! isset($attributes['type']))
-        {
-            $attributes['type'] = 'text';
-        }
-
         $attrString = $this->getAttrStr($attributes);
 
         return sprintf('<input %s>', $attrString);
-    }
-
-    /**
-     * Shorthand method for Form::inputField()
-     *
-     * @access  public
-     * @param   string  $name       The element name
-     * @param   array   $attributes Array of HTML attributes
-     * @return  string              The HTML element
-     */
-    public function textField($name = null, array $attributes = array())
-    {
-        $attributes['name'] = $this->fieldName($name);
-        return $this->inputField($name, $attributes);
-    }
-
-    /**
-     * Shorthand method for Form::inputField()
-     *
-     * @access  public
-     * @param   string  $name       The element name
-     * @param   array   $attributes Array of HTML attributes
-     * @return  string              The HTML element
-     */
-    public function submitField($name = null, array $attributes = array())
-    {
-        $attributes['name'] = $this->fieldName($name);
-        $attributes['type'] = 'submit';
-        return $this->inputField($name, $attributes);
-    }
-
-    /**
-     * Shorthand method for Form::inputField()
-     *
-     * @access  public
-     * @param   string  $name       The element name
-     * @param   array   $attributes Array of HTML attributes
-     * @return  string              The HTML element
-     */
-    public function passwordField($name = null, array $attributes = array())
-    {
-        $attributes['name'] = $this->fieldName($name);
-        $attributes['type'] = 'password';
-        return $this->inputField($name, $attributes);
-    }
-
-    /**
-     * Shorthand method for Form::inputField()
-     *
-     * @access  public
-     * @param   string  $name       The element name
-     * @param   array   $attributes Array of HTML attributes
-     * @return  string              The HTML element
-     */
-    public function radioField($name = null, array $attributes = array())
-    {
-        $attributes['name'] = $this->fieldName($name);
-        $attributes['type'] = 'radio';
-        return $this->inputField($name, $attributes);
-    }
-
-    /**
-     * Shorthand method for Form::inputField()
-     *
-     * @access  public
-     * @param   string  $name       The element name
-     * @param   array   $attributes Array of HTML attributes
-     * @return  string              The HTML element
-     */
-    public function checkboxField($name = null, array $attributes = array())
-    {
-        $attributes['name'] = $this->fieldName($name);
-        $attributes['type'] = 'checkbox';
-        return $this->inputField($name, $attributes);
-    }
-
-    /**
-     * Shorthand method for Form::inputField()
-     *
-     * @access  public
-     * @param   string  $name       The element name
-     * @param   array   $attributes Array of HTML attributes
-     * @return  string              The HTML element
-     */
-    public function resetField($name = null, array $attributes = array())
-    {
-        $attributes['name'] = $this->fieldName($name);
-        $attributes['type'] = 'reset';
-        return $this->inputField($name, $attributes);
-    }
-
-    /**
-     * Shorthand method for Form::inputField()
-     *
-     * @access  public
-     * @param   string  $name       The element name
-     * @param   array   $attributes Array of HTML attributes
-     * @return  string              The HTML element
-     */
-    public function hiddenField($name = null, array $attributes = array())
-    {
-        $attributes['name'] = $this->fieldName($name);
-        $attributes['type'] = 'hidden';
-        return $this->inputField($name, $attributes);
-    }
-
-    /**
-     * Shorthand method for Form::inputField()
-     *
-     * @access  public
-     * @param   string  $name       The element name
-     * @param   array   $attributes Array of HTML attributes
-     * @return  string              The HTML element
-     */
-    public function fileField($name = null, array $attributes = array())
-    {
-        $attributes['name'] = $this->fieldName($name);
-        $attributes['type'] = 'file';
-        return $this->inputField($name, $attributes);
-    }
-
-    /**
-     * Shorthand method for Form::inputField()
-     *
-     * @access  public
-     * @param   string  $name       The element name
-     * @param   array   $attributes Array of HTML attributes
-     * @return  string              The HTML element
-     */
-    public function uploadField($name = null, array $attributes = array())
-    {
-        $attributes['name'] = $this->fieldName($name);
-        $attributes['type'] = 'file';
-        return $this->inputField($name, $attributes);
     }
 
     /**
@@ -383,21 +269,6 @@ abstract class Form
      * @return  string              The HTML element
      */
     public function filesField($name = null, array $attributes = array())
-    {
-        $attributes['name'] = $this->fieldName($name) . '[]';
-        $attributes['type'] = 'file';
-        return $this->inputField($name, $attributes);
-    }
-
-    /**
-     * Shorthand method for Form::inputField(), but for multiple files
-     *
-     * @access  public
-     * @param   string  $name       The element name
-     * @param   array   $attributes Array of HTML attributes
-     * @return  string              The HTML element
-     */
-    public function uploadsField($name = null, array $attributes = array())
     {
         $attributes['name'] = $this->fieldName($name) . '[]';
         $attributes['type'] = 'file';
@@ -503,10 +374,31 @@ abstract class Form
      * @param   array   $attributes Array of HTML attributes
      * @return  string              The HTML element
      */
-    public function buttonField($name = null, $value = null, array $attributes = array())
+    public function buttonbuttonField($name = null, $value = null, array $attributes = array())
     {
         $attributes['name'] = $this->fieldName($name);
         $attributes['type'] = 'button';
+
+        $value = ($value === null) ? 'Button' : $value;
+
+        $attributes = $this->getAttrStr($attributes);
+
+        return sprintf('<button %s>%s</button>', $attributes, $value);
+    }
+
+    /**
+     * Returns a button HTML element, of type reset
+     *
+     * @access  public
+     * @param   string  $name       The element name
+     * @param   string  $value      The button text
+     * @param   array   $attributes Array of HTML attributes
+     * @return  string              The HTML element
+     */
+    public function resetbuttonField($name = null, $value = null, array $attributes = array())
+    {
+        $attributes['name'] = $this->fieldName($name);
+        $attributes['type'] = 'reset';
 
         $value = ($value === null) ? 'Button' : $value;
 
