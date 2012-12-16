@@ -420,7 +420,14 @@ abstract class Form
 
         foreach($attributes as $key => $value)
         {
-            $attributeString .= sprintf('%s="%s" ', $key, $value);
+            if(is_int($key))
+            {
+                $attributeString .= sprintf('%s ', $value);
+            }
+            else
+            {
+                $attributeString .= sprintf('%s="%s" ', $key, $value);
+            }
         }
 
         return trim($attributeString);
