@@ -92,7 +92,7 @@ abstract class Form
         {
             if(in_array($this->$name, $this->inputfields))
             {
-                $attributes = is_array($arguments[0]) ? $arguments[0] : array();
+                $attributes = (isset($arguments[0]) && is_array($arguments[0]))? $arguments[0] : array();
                 $attributes['type'] = $this->$name;
 
                 return $this->inputField($name, $attributes);
@@ -255,6 +255,7 @@ abstract class Form
      */
     public function inputField($name, array $attributes = array())
     {
+        $attributes['name'] = $this->fieldName($name);
         $attrString = $this->getAttrStr($attributes);
 
         return sprintf('<input %s>', $attrString);
