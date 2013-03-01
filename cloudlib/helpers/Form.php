@@ -273,7 +273,8 @@ abstract class Form
     {
         $attributes['name'] = $this->fieldName($name) . '[]';
         $attributes['type'] = 'file';
-        return $this->inputField($name, $attributes);
+        $attrString = $this->getAttrStr($attributes);
+        return sprintf('<input %s>', $attrString);
     }
 
     /**

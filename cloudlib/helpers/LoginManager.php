@@ -89,6 +89,11 @@ class LoginManager
     {
         $this->app = $app;
         $this->loginRoute = $loginRoute;
+
+        if( ! $this->app->session)
+        {
+            throw new RuntimeException('No session handler is available');
+        }
     }
 
     /**
@@ -99,13 +104,16 @@ class LoginManager
      * @param   string          $property   The property to be accessed
      * @return  void
      */
-    public function loginUser($user, $property = null)
+    public function loginUser($user, $property = 'id')
     {
         $this->callFilter('beforeLogin');
 
-        $user = is_array($user) ? (object) $user : $user;
+        if( ! is_array($user) && ! is_object($user))
+        {
+            throw new RuntimeException('User has to be of type Array or Object');   
+        }
 
-        $property = $property ? $property : 'id';
+        $user = is_array($user) ? (object) $user : $user;
 
         if(property_exists($user, $property))
         {
@@ -176,7 +184,7 @@ class LoginManager
      */
     public function loginRequired()
     {
-        // TODO check amount of login attempts j
+        // TODO check amount of login attempts? or some other method
 
         if( ! $this->isActive())
         {
