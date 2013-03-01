@@ -88,7 +88,7 @@ class UploadManager
 
             foreach($this->validators as $validator)
             {
-                $message = null;
+                $message = '';
 
                 $validated = $validator($file, $message);
 
@@ -107,7 +107,6 @@ class UploadManager
 
             $this->files[] = $file;
         }
-
     }
 
     /**
@@ -118,9 +117,9 @@ class UploadManager
      */
     public function isEmpty()
     {
-        foreach($this->__files as $fileinformation)
+        foreach($this->__files as $file)
         {
-            if($fileinformation['error'] !== UPLOAD_ERR_NO_FILE)
+            if($file['error'] !== UPLOAD_ERR_NO_FILE)
             {
                 return false;
             }
@@ -169,17 +168,24 @@ class UploadManager
         // Recursively flatten an array
         $f = function($arr, $new = array()) use (&$f)
         {
-            foreach($arr as $val)
+            if(is_array($arr))
             {
-                if(is_array($val))
+                foreach($arr as $val)
                 {
-                    $new = $f($val, $new);
+                    if(is_array($val))
+                    {
+                        $new = $f($val, $new);
+                    }
+                    else
+                    {
+                        $new[] = $val;
+                    }
                 }
-                else
-                {
-                    $new[] = $val;
-                }
+
+                return $new;
             }
+
+            $new[] = $arr;
             return $new;
         };
 
