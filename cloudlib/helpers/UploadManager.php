@@ -3,7 +3,7 @@
  * Cloudlib
  *
  * @author      Sebastian Book <cloudlibframework@gmail.com>
- * @copyright   Copyright (c) 2012 Sebastian Book <cloudlibframework@gmail.com>
+ * @copyright   Copyright (c) 2013 Sebastian Bengtegård <cloudlibframework@gmail.com>
  * @license     MIT License (http://www.opensource.org/licenses/mit-license.php)
  */
 
@@ -16,7 +16,7 @@ use Closure;
 /**
  * The UploadManager class
  *
- * @copyright   Copyright (c) 2012 Sebastian Book <cloudlibframework@gmail.com>
+ * @copyright   Copyright (c) 2013 Sebastian Bengtegård <cloudlibframework@gmail.com>
  * @license     MIT License (http://www.opensource.org/licenses/mit-license.php)
  */
 class UploadManager
@@ -165,7 +165,7 @@ class UploadManager
     {
         $temp = array();
 
-        // Recursively flatten an array
+        // Recursively flatten the array
         $f = function($arr, $new = array()) use (&$f)
         {
             if(is_array($arr))
@@ -278,7 +278,7 @@ class UploadManager
 /**
  * The File class
  *
- * @copyright   Copyright (c) 2012 Sebastian Book <cloudlibframework@gmail.com>
+ * @copyright   Copyright (c) 2013 Sebastian Bengtegård <cloudlibframework@gmail.com>
  * @license     MIT License (http://www.opensource.org/licenses/mit-license.php)
  */
 class File extends SplFileInfo
@@ -428,9 +428,7 @@ class File extends SplFileInfo
     public function getHumanReadableSize($decimals = 1)
     {
         $units = array('B', 'KB', 'MB', 'GB');
-
         $base = log($this->size) / log(1024);
-
         $value = round(pow(1024, $base - floor($base)), $decimals);
 
         return sprintf('%s %s', $value, $units[floor($base)]);

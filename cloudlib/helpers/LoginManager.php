@@ -3,7 +3,7 @@
  * Cloudlib
  * 
  * @author      Sebastian Book <cloudlibframework@gmail.com>
- * @copyright   Copyright (c) 2012 Sebastian Book <cloudlibframework@gmail.com>
+ * @copyright   Copyright (c) 2013 Sebastian Bengtegård <cloudlibframework@gmail.com>
  * @license     MIT License (http://www.opensource.org/licenses/mit-license.php)
  */
 
@@ -16,7 +16,7 @@ use Closure;
 /**
  * The LoginManager class
  *
- * @copyright   Copyright (c) 2012 Sebastian Book <cloudlibframework@gmail.com>
+ * @copyright   Copyright (c) 2013 Sebastian Bengtegård <cloudlibframework@gmail.com>
  * @license     MIT License (http://www.opensource.org/licenses/mit-license.php)
  */
 class LoginManager
@@ -118,6 +118,7 @@ class LoginManager
         if(property_exists($user, $property))
         {
             $this->app->session->refresh();
+            // ta ut en bit av session token? så kan man jämföra den i isActive också
             $this->app->session->set('user_id', sha1($user->$property));
 
             $this->callFilter('afterLogin');

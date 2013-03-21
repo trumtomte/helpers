@@ -3,7 +3,7 @@
  * Cloudlib
  *
  * @author      Sebastian Book <cloudlibframework@gmail.com>
- * @copyright   Copyright (c) 2012 Sebastian Book <cloudlibframework@gmail.com>
+ * @copyright   Copyright (c) 2013 Sebastian Bengtegård <cloudlibframework@gmail.com>
  * @license     MIT License (http://www.opensource.org/licenses/mit-license.php)
  */
 
@@ -16,7 +16,7 @@ use RuntimeException;
 /**
  * The Database class
  *
- * @copyright   Copyright (c) 2012 Sebastian Book <cloudlibframework@gmail.com>
+ * @copyright   Copyright (c) 2013 Sebastian Bengtegård <cloudlibframework@gmail.com>
  * @license     MIT License (http://www.opensource.org/licenses/mit-license.php)
  */
 class Database
@@ -36,6 +36,22 @@ class Database
      * @var     array
      */
     public $settings = array();
+
+    /**
+     * The last inserted id
+     *
+     * @access  public
+     * @var     int
+     */
+    public $lastInsertId = null;
+
+    /**
+     * Information about the last occured error
+     *
+     * @access  public
+     * @var     string
+     */
+    public $errorInfo = null;
 
     /**
      * Set the settings array, connect to the database 
@@ -128,6 +144,50 @@ class Database
     public function rollBack()
     {
         return $this->connection->rollBack();
+    }
+
+    /**
+     * Gets the last inserted ID
+     *
+     * @access  public
+     * @return  int
+     */
+    public function lastInsertId()
+    {
+        return $this->connection->lastInsertId();
+    }
+
+    /**
+     * Gets the error information for the most recent inserted row
+     *
+     * @access  public
+     * @return  array
+     */
+    public function errorInfo()
+    {
+        return $this->connection->errorInfo();
+    }
+
+    /**
+     * Gets the error information
+     *
+     * @access  public
+     * @return  array|boolean   Return false if no error information has been set
+     */
+    public function getError()
+    {
+        return ($this->errorInfo !== null) ? $this->errorInfo : false;
+    }
+
+    /**
+     * Gets the last inserted ID
+     *
+     * @access  public
+     * @return  int|boolean     Return false if no ID has been set
+     */
+    public function getId()
+    {
+        return ($this->lastInsertId !== null) ? $this->lastInsertId : false;
     }
 
     /**
@@ -254,7 +314,7 @@ class Database
      */
     public function updateMany($table, $column, $case, array $variables)
     {
-        $cases = null;
+        $cases = '';
 
         foreach($variables as $key => $value)
         {
@@ -288,6 +348,186 @@ class Database
     }
 
     /**
+     * Performs an DELETE query based off of the object properties
+     *
+     * @access  public
+     * @param   string      $table  The table
+     * @param   object      $object The object
+     * @param   string      $id     The identifier field
+     * @return  int                 Amount of rows affected
+     */
+    public function deleteObj($table, $object, $id = 'id')
+    {
+        $properties = get_object_vars($object);
+
+        $statement = sprintf('DELETE FROM %s WHERE %s = ?', $table, $id);
+
+        $sth = $this->execute($statement, array($properties[$id]));
+        $result = $sth->rowCount();
+        $sth->closeCursor();
+        unset($sth);
+
+        return ($result > 0) ? $result : false;
+    }
+
+    // TODO
+    public function deleteObjs($table, $objects, $id = 'id')
+    {
+        // Same as above, but WHERE id IN (...)
+    }
+
+    /**
+     * Performs an INSERT query based off of the object properties
+     *
+     * @access  public
+     * @param   string  $table  The table
+     * @param   object  $object The object
+     * @return                  Amount of rows affected
+     */
+    public function insertObj($table, $object)
+    {
+        $properties = get_object_vars($object);
+
+        $columns = implode(', ', array_keys($properties));
+
+        $placeholders = str_repeat('?, ', (count($properties) - 1)) . '?';
+
+        $statement = sprintf('INSERT INTO %s (%s) VALUES (%s)',
+            $table, $columns, $placeholders);
+
+        $sth = $this->execute($statement, array_values($properties));
+        $result = $sth->rowCount();
+
+        $this->lastInsertId = $this->lastInsertId();
+
+        $sth->closeCursor();
+        unset($sth);
+
+        return ($result > 0) ? $result : false;
+    }
+
+    /**
+     * Performs an INSERT query based off of multiple objects properties
+     *
+     * @access  public
+     * @param   string  $table      The table
+     * @param   array   $objects    The objects
+     * @return                      Amount of effected rows
+     */
+    public function insertObjs($table, array $objects)
+    {
+        $columns = implode(', ', array_keys(get_object_vars($objects[0])));
+
+        $values = array();
+        $bindings = array();
+
+        foreach($objects as $object)
+        {
+            $properties = get_object_vars($object);
+
+            $values[] = sprintf('(%s?)',
+                str_repeat('?, ', (count($properties) - 1)));
+
+            $bindings = array_merge($bindings, array_values($properties));
+        }
+
+        $statement = sprintf('INSERT INTO %s (%s) VALUES %s',
+            $table, $columns, implode(', ', $values));
+
+
+        $sth = $this->execute($statement, $bindings);
+        $result = $sth->rowCount();
+
+        $this->lastInsertId = $this->lastInsertId();
+
+        $sth->closeCursor();
+        unset($sth);
+
+        return ($result > 0) ? $result : false;
+    }
+
+    /**
+     * Performs an UPDATE query based off of the object properties
+     *
+     * @access  public
+     * @param   string  $table  The table
+     * @param   object  $object The object
+     * @param   string  $id     The object unique identifier
+     * @return                  Amount of affected rows
+     */
+    public function updateObj($table, $object, $id = 'id')
+    {
+        $properties = get_object_vars($object);
+
+        $temp = $properties[$id];
+        unset($properties[$id]);
+
+        $statement = sprintf('UPDATE %s SET %s WHERE %s = ?', $table,
+            implode(' = ?, ', array_keys($properties)) . ' = ?', $id);
+
+        $properties[$id] = $temp;
+
+        $sth = $this->execute($statement, array_values($properties));
+        $result = $sth->rowCount();
+
+        $sth->closeCursor();
+
+        unset($sth);
+
+        return ($result > 0) ? $result : false;
+    }
+
+    /**
+     * Performs an UPDATE query on multiple objects
+     *
+     * @access  public
+     * @param   string  $table      The table
+     * @param   array   $objects    The objects
+     * @param   string  $id         The object unqiue identifier
+     * @return                      Amount of affected rows
+     */
+    public function updateObjs($table, array $objects, $id = 'id')
+    {
+        $statement = sprintf('UPDATE %s SET ', $table);
+
+        $properties = get_object_vars($objects[0]);
+        unset($properties[$id]);
+        $properties = array_keys($properties);
+
+        $ids = array();
+
+        foreach($objects as $object)
+        {
+            $ids[] = $object->id;
+        }
+
+        $cases = '';
+
+        foreach($properties as $property)
+        {
+            $str = sprintf('%s = CASE %s ', $property, $id);
+
+            foreach($objects as $object)
+            {
+                $str .= sprintf("WHEN '%s' THEN '%s' ", $object->{$id}, $object->{$property});
+            }
+
+            $str .= 'END, ';
+
+            $cases .= $str;
+        }
+
+        $cases = rtrim($cases, ', ');
+        $statement .= sprintf('%s WHERE %s IN (%s)', $cases, $id, implode($ids, ', '));
+        $sth = $this->execute($statement);
+        $result = $sth->rowCount();
+        $sth->closeCursor();
+        unset($sth);
+
+        return ($result > 0) ? $result : false;   
+    }
+
+    /**
      * Execute a prepared statement
      *
      * @access  public
@@ -298,6 +538,11 @@ class Database
     protected function execute($statement, array $bindings = array())
     {
         $sth = $this->connection->prepare($statement);
+
+        if( ! $sth)
+        {
+            $this->errorInfo = $this->errorInfo();
+        }
 
         $sth->execute($bindings);
 

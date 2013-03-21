@@ -3,7 +3,7 @@
  * Cloudlib
  *
  * @author      Sebastian Book <cloudlibframework@gmail.com>
- * @copyright   Copyright (c) 2012 Sebastian Book <cloudlibframework@gmail.com>
+ * @copyright   Copyright (c) 2013 Sebastian Bengtegård <cloudlibframework@gmail.com>
  * @license     MIT License (http://www.opensource.org/licenses/mit-license.php)
  */
 
@@ -16,7 +16,7 @@ use Exception;
 /**
  * The ImageHandler class
  *
- * @copyright   Copyright (c) 2012 Sebastian Book <cloudlibframework@gmail.com>
+ * @copyright   Copyright (c) 2013 Sebastian Bengtegård <cloudlibframework@gmail.com>
  * @license     MIT License (http://www.opensource.org/licenses/mit-license.php)
  */
 class ImageHandler
@@ -323,7 +323,7 @@ class ImageHandler
 /**
  * The Image class
  *
- * @copyright   Copyright (c) 2012 Sebastian Book <cloudlibframework@gmail.com>
+ * @copyright   Copyright (c) 2013 Sebastian Bengtegård <cloudlibframework@gmail.com>
  * @license     MIT License (http://www.opensource.org/licenses/mit-license.php)
  */
 class Image extends SplFileInfo
@@ -450,9 +450,7 @@ class Image extends SplFileInfo
     public function getHumanReadableSize($decimals = 1)
     {
         $units = array('B', 'KB', 'MB', 'GB');
-
         $base = log($this->size) / log(1024);
-
         $value = round(pow(1024, $base - floor($base)), $decimals);
 
         return sprintf('%s %s', $value, $units[floor($base)]);
