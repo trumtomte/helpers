@@ -93,7 +93,7 @@ class Logger
      */
     public function log($message, $level = 0)
     {
-        $level = in_array($level, $this->severity) ? $level : 0;
+        $level = array_key_exists($level, $this->severity) ? $level : 0;
 
         if(is_array($message))
         {

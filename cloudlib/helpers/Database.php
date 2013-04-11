@@ -495,6 +495,7 @@ class Database
         $properties = array_keys($properties);
 
         $ids = array();
+        $bindings = array();
 
         foreach($objects as $object)
         {
@@ -509,7 +510,8 @@ class Database
 
             foreach($objects as $object)
             {
-                $str .= sprintf("WHEN '%s' THEN '%s' ", $object->{$id}, $object->{$property});
+                $str .= 'WHEN ? THEN ? ';
+                array_push($bindings, $object->{$id}, $object->{$property});
             }
 
             $str .= 'END, ';
@@ -519,7 +521,7 @@ class Database
 
         $cases = rtrim($cases, ', ');
         $statement .= sprintf('%s WHERE %s IN (%s)', $cases, $id, implode($ids, ', '));
-        $sth = $this->execute($statement);
+        $sth = $this->execute($statement, $bindings);
         $result = $sth->rowCount();
         $sth->closeCursor();
         unset($sth);
