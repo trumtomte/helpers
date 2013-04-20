@@ -22,15 +22,15 @@ use RuntimeException;
 class Database
 {
     /**
-     * Current connection
+     * The Database connection
      *
      * @access  public
      * @var     object
      */
-    public $connection;
+    public $connection = null;
 
     /**
-     * Array of settins for connecting to the database 
+     * Database connection settings
      *
      * @access  public
      * @var     array
@@ -38,108 +38,157 @@ class Database
     public $settings = array();
 
     /**
-     * The last inserted id
-     *
-     * @access  public
-     * @var     int
-     */
-    public $lastInsertId = null;
-
-    /**
-     * Information about the last occured error
+     * Current Database statement (query)
      *
      * @access  public
      * @var     string
      */
+    public $statement = '';
+
+    /**
+     * PDO Bindings for prepared statements
+     *
+     * @access  public
+     * @var     array
+     */
+    public $bindings = array();
+
+    /**
+     * The current statement handler
+     *
+     * @access  public
+     * @var     object
+     */
+    public $statementHandler = null;
+
+    /**
+     * Array of error information
+     *
+     * @access  public
+     * @var     array
+     */
     public $errorInfo = null;
 
     /**
-     * Set the settings array, connect to the database 
+     * Error code of database exception
      *
      * @access  public
-     * @param   array   $settings   Array of database settings
-     * @param   boolean $connect    If we should connect at object creation or not
+     * @var     int
+     */
+    public $errorCode = null;
+
+    /**
+     * PDO Exception
+     *
+     * @access  public
+     * @var     object
+     */
+    public $exception = null;
+
+    /**
+     * Method to be used when executing a database statement
+     *
+     * @access  public
+     * @var     string
+     */
+    public $method = false;
+
+    /**
+     * Array of columns for the current query
+     *
+     * @access  public
+     * @var     array
+     */
+    public $columns = array();
+
+    /**
+     * Initialize the database connection
+     *
+     * @access  public
+     * @param   mixed   $settings   Array or String to be used to connect to the database
+     * @param   bool    $wait       If we should wait with connecting to the database
      * @return  void
      */
-    public function __construct($settings, $connect = true)
+    public function __construct($settings, $wait = false)
     {
         if(is_string($settings))
         {
-            extract(parse_url($settings));
+            try
+            {
+                extract(parse_url($settings));
 
-            $settings = array(
-                'dsn' => sprintf('%s:host=%s;port=%s;dbname=%s',
-                    $scheme, $host, $port, trim($path, '/')),
-                'username' => $user,
-                'password' => $pass
-            );
+                $settings = array(
+                    'dsn' => sprintf('%s:host=%s;port=%s;dbname=%s',
+                        $scheme, $host, $port, trim($path, '/')),
+                    'username' => $user,
+                    'password' => $pass
+                );
+            }
+            catch(Exception $e)
+            {
+                throw new InvalidArgumentException(
+                    sprintf('Invalid Database URL [%]', $settings)
+                );
+            }
         }
 
         $this->settings = $settings;
 
-        if($connect)
+        if( ! $wait)
         {
             $this->connect();
         }
     }
 
     /**
-     * Make a connectio to the database
+     * Initialize a connection to a database
      *
      * @access  public
-     * @throws  RuntimeException    If the connection fails
-     * @return  void
+     * @param   mixed   $settings   Array or String to be used to connect to the database
+     * @return  object              Returns the database connection
      */
-    public function connect()
+    public function connect($settings = null)
     {
+        $settings = $settings ? $settings : $this->settings;
+
         $driverOptions = array(
-            // PDO::ATTR_PERSISTENT => $this->settings['persistent'],
             PDO::MYSQL_ATTR_INIT_COMMAND => 'SET NAMES utf8'
         );
 
         try
         {
             $this->connection = new PDO(
-                $this->settings['dsn'],
-                $this->settings['username'],
-                $this->settings['password'],
+                $settings['dsn'],
+                $settings['username'],
+                $settings['password'],
                 $driverOptions
             );
             $this->connection->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+            return $this->connection;
         }
         catch(PDOException $e)
         {
-            throw new RuntimeException($e->getMessage());
+            throw new RuntimeException('Unable to establish database connection');
         }
     }
 
     /**
-     * Begin a transaction
+     * Shorthand method for beginTransaction()
      *
      * @access  public
-     * @return  boolean
+     * @return  bool
      */
-    public function begin()
+    public function beginTransaction()
     {
         return $this->connection->beginTransaction();
     }
 
     /**
-     * Commit a transaction
+     * Shorthand method for rollBack()
      *
      * @access  public
-     * @return  boolean
-     */
-    public function commit()
-    {
-        return $this->connection->commit();
-    }
-
-    /**
-     * Roll back a transaction
-     *
-     * @access  public
-     * @return  boolean
+     * @return  bool
      */
     public function rollBack()
     {
@@ -147,10 +196,32 @@ class Database
     }
 
     /**
-     * Gets the last inserted ID
+     * Shorthand method for commit()
      *
      * @access  public
-     * @return  int
+     * @return  bool
+     */
+    public function commit()
+    {
+        return $this->connection->commit();
+    }
+
+    /**
+     * Shorthand method for isTransaction()
+     *
+     * @access  public
+     * @return  bool
+     */
+    public function inTransaction()
+    {
+        return $this->connection->inTransaction();
+    }
+
+    /**
+     * Shorthand method for lastInsertId()
+     *
+     * @access  public
+     * @return  bool
      */
     public function lastInsertId()
     {
@@ -158,7 +229,7 @@ class Database
     }
 
     /**
-     * Gets the error information for the most recent inserted row
+     * Shorthand method for errorInfo()
      *
      * @access  public
      * @return  array
@@ -169,419 +240,485 @@ class Database
     }
 
     /**
-     * Gets the error information
+     * Shorthand method for errorCode()
      *
      * @access  public
-     * @return  array|boolean   Return false if no error information has been set
+     * @return  int
      */
-    public function getError()
+    public function errorCode()
     {
-        return ($this->errorInfo !== null) ? $this->errorInfo : false;
+        return $this->connection->errorCode();
     }
 
     /**
-     * Gets the last inserted ID
+     * Fetch all results from a query
      *
      * @access  public
-     * @return  int|boolean     Return false if no ID has been set
-     */
-    public function getId()
-    {
-        return ($this->lastInsertId !== null) ? $this->lastInsertId : false;
-    }
-
-    /**
-     * Fetch all results from a query returned as an array of stdClasses
-     *
-     * @access  public
-     * @param   string      $statement  The query with named/mark placeholders
-     * @param   array       $bindings   Array of values for the placeholders
-     * @return  object|false            Return the result (object) or false if the query failed
+     * @param   string  $statement  Database query
+     * @param   array   $bindings   Bindings used for prepared statements
+     * @return  object
      */
     public function fetchAll($statement, array $bindings = array())
     {
-        $sth = $this->execute($statement, $bindings);
-        $result = $sth->fetchAll(PDO::FETCH_CLASS);
-
-        $sth->closeCursor();
-
-        unset($sth);
-
-        return empty($result) ? false : $result;
+        $this->statement = $statement;
+        $this->bindings = $bindings;
+        $this->prepare($statement);
+        $this->method = 'fetchAll';
+        return $this;
     }
 
     /**
-     * Fetch first result from a query returned as an stdClass
+     * Fetch the first result from a query
      *
      * @access  public
-     * @param   string      $statement  The query with named/mark placeholders
-     * @param   array       $bindings   Array of values for the placeholders
-     * @return  object|false            Return the result (object) or false if the query failed
+     * @param   string  $statement  Database query
+     * @param   array   $bindings   Bindings used for prepared statements
+     * @return  object
      */
     public function fetchFirst($statement, array $bindings = array())
     {
-        $sth = $this->execute($statement, $bindings);
-        $result = $sth->fetchObject();
-
-        $sth->closeCursor();
-
-        unset($sth);
-
-        return is_object($result) ? $result : false;
+        $this->statement = $statement;
+        $this->bindings = $bindings;
+        $this->prepare($statement);
+        $this->method = 'fetch';
+        return $this;
     }
 
     /**
-     * Return number of rows from a query
+     * Perform a custom query
      *
      * @access  public
-     * @param   string      $statement  The query with named/mark placeholders
-     * @param   array       $bindings   Array of values for the placeholders
-     * @return  int|false               Return the number of rows or false if the query failed
+     * @param   string  $statement  Database query
+     * @param   array   $bindings   Bindings used for prepared statements
+     * @return  object
      */
-    public function rows($statement, array $bindings = array())
+    public function query($statement, array $bindings = array())
     {
-        $sth = $this->execute($statement, $bindings);
-        $result = $sth->rowCount();
-
-        $sth->closeCursor();
-
-        unset($sth);
-
-        return ($result > 0) ? $result : false;
+        $this->statement = $statement;
+        $this->bindings = $bindings;
+        $this->prepare($statement);
+        return $this;
     }
 
     /**
-     * Perform an insert query
+     * Determine if we are performing an INSERT query on a single object or multiple
      *
      * @access  public
-     * @param   string      $table      The table name
-     * @param   array       $columns    The table columns
-     * @param   array       $bindings   Array of values to be inserted
-     * @return  int|false               Return the row count or false if the query failed
+     * @param   mixed   $object The object(s)
+     * @param   string  $table  The database table
+     * @return  object
      */
-    public function insert($table, array $columns, array $bindings)
+    public function create($object, $table)
     {
-        $values = implode(', ', array_fill(0, (count($bindings) / count($columns)),
-            sprintf('(%s?)', str_repeat('?, ', (count($columns) - 1)))));
+        $this->setColumns($object);
 
-        $statement = sprintf('INSERT INTO %s (%s) VALUES %s',
-            $table, implode(', ', $columns), $values);
-
-        $sth = $this->execute($statement, $bindings);
-        $result = $sth->rowCount();
-
-        $sth->closeCursor();
-
-        unset($sth);
-
-        return ($result > 0) ? $result : false;
-    }
-
-    /**
-     * Perform an update query
-     *
-     * @access  public
-     * @param   string      $table      The table name
-     * @param   string      $where      The 'WHERE' clause in the sql query
-     * @param   array       $columns    The talbe columns
-     * @param   array       $bindings   Array of values to be updated
-     * @return  int|false               Return the row count or false if the query failed
-     */
-    public function update($table, $where, array $columns, array $bindings)
-    {
-        $statement = sprintf('UPDATE %s SET %s WHERE %s',
-            $table, implode(' = ?, ', $columns) . ' = ?', $where);
-
-        $sth = $this->execute($statement, $bindings);
-        $result = $sth->rowCount();
-
-        $sth->closeCursor();
-
-        unset($sth);
-
-        return ($result > 0) ? $result : false;
-    }
-
-    /**
-     * Perform an update query with cases
-     *
-     * @access  public
-     * @param   string      $table      The table name
-     * @param   string      $column     The table columns
-     * @param   string      $case       The case
-     * @param   array       $variables  Array of values to be updated
-     * @return  int|false               Return the row count or false if the query failed
-     */
-    public function updateMany($table, $column, $case, array $variables)
-    {
-        $cases = '';
-
-        foreach($variables as $key => $value)
+        if(is_object($object))
         {
-            $cases .= sprintf(" WHEN '%s' THEN '%s'", $key, $value);
+            $this->insertObject($object, $table);
+        }
+        elseif(is_array($object))
+        {
+            $this->insertObjects($object, $table);
         }
 
-        $statement = sprintf('UPDATE %s SET %s = CASE %s %s ELSE %s END', $table, $column, $case, $cases, $column);
-
-        $sth = $this->execute($statement, array());
-        $result = $sth->rowCount();
-
-        $sth->closeCursor();
-
-        unset($sth);
-
-        return ($result > 0) ? $result : false;
+        return $this;
     }
 
     /**
-     * Perform a delete query
+     * Determine if we are performing an UPDATE query on a single object or multiple
      *
      * @access  public
-     * @param   string      $statement  The query with named/mark placeholders
-     * @param   array       $bindings   Array of values for the placeholders
-     * @return  int|false               Return the row count or false if the query failed
+     * @param   mixed   $object The object(s)
+     * @param   string  $table  The database table
+     * @param   string  $id     Object identifier
+     * @return  object
      */
-    public function delete($statement, array $bindings = array())
+    public function update($object, $table, $id = 'id')
     {
-        // TODO make it easier to write a delete query (like insert/update)
-        return $this->rows($statement, $bindings);
+        $this->setColumns($object);
+    
+        if(is_object($object))
+        {
+            $this->updateObject($object, $table, $id);
+        }
+        elseif(is_array($object))
+        {
+            $this->updateObjects($object, $table, $id);
+        }
+
+        return $this;
     }
 
     /**
-     * Performs an DELETE query based off of the object properties
+     * Determine if we are performing an DELETE query on a single object or multiple
      *
      * @access  public
-     * @param   string      $table  The table
-     * @param   object      $object The object
-     * @param   string      $id     The identifier field
-     * @return  int                 Amount of rows affected
+     * @param   mixed   $object The object(s)
+     * @param   string  $table  The database table
+     * @param   string  $id     Object identifier
+     * @return  object
      */
-    public function deleteObj($table, $object, $id = 'id')
+    public function remove($object, $table, $id = 'id')
     {
-        $properties = get_object_vars($object);
+        $this->setColumns($object);
 
-        $statement = sprintf('DELETE FROM %s WHERE %s = ?', $table, $id);
+        if(is_object($object))
+        {
+            $this->deleteObject($object, $table, $id);
+        }
+        elseif(is_array($object))
+        {
+            $this->deleteObjects($object, $table, $id);
+        }
 
-        $sth = $this->execute($statement, array($properties[$id]));
-        $result = $sth->rowCount();
-        $sth->closeCursor();
-        unset($sth);
-
-        return ($result > 0) ? $result : false;
-    }
-
-    // TODO
-    public function deleteObjs($table, $objects, $id = 'id')
-    {
-        // Same as above, but WHERE id IN (...)
+        return $this;
     }
 
     /**
-     * Performs an INSERT query based off of the object properties
+     * Perform an INSERT query on a single object
      *
      * @access  public
-     * @param   string  $table  The table
      * @param   object  $object The object
-     * @return                  Amount of rows affected
+     * @param   string  $table  The database table
+     * @return  object
      */
-    public function insertObj($table, $object)
+    public function insertObject($object, $table)
     {
-        $properties = get_object_vars($object);
-
-        $columns = implode(', ', array_keys($properties));
-
-        $placeholders = str_repeat('?, ', (count($properties) - 1)) . '?';
+        $columns = implode(', ', $this->columns);
+        $placeholders = str_repeat('?, ', (count($this->columns) - 1)) . '?';
 
         $statement = sprintf('INSERT INTO %s (%s) VALUES (%s)',
             $table, $columns, $placeholders);
 
-        $sth = $this->execute($statement, array_values($properties));
-        $result = $sth->rowCount();
-
-        $this->lastInsertId = $this->lastInsertId();
-
-        $sth->closeCursor();
-        unset($sth);
-
-        return ($result > 0) ? $result : false;
+        $this->statement = $statement;
+        $this->bindings = array_values(get_object_vars($object));
+        $this->prepare($statement);
+        
+        return $this;
     }
 
     /**
-     * Performs an INSERT query based off of multiple objects properties
+     * Perform an INSERT query on multiple objects
      *
      * @access  public
-     * @param   string  $table      The table
-     * @param   array   $objects    The objects
-     * @return                      Amount of effected rows
+     * @param   object  $objects    The objects
+     * @param   string  $table      The database table
+     * @return  object
      */
-    public function insertObjs($table, array $objects)
+    public function insertObjects(array $objects, $table)
     {
-        $columns = implode(', ', array_keys(get_object_vars($objects[0])));
+        $columns = implode(', ', $this->columns);   
 
-        $values = array();
-        $bindings = array();
+        $bindings = $placeholders = array();
 
         foreach($objects as $object)
         {
-            $properties = get_object_vars($object);
+            $placeholders[] = sprintf('(%s?)',
+                str_repeat('?, ', (count($this->columns) - 1))
+            );
 
-            $values[] = sprintf('(%s?)',
-                str_repeat('?, ', (count($properties) - 1)));
-
-            $bindings = array_merge($bindings, array_values($properties));
+            $bindings = array_merge($bindings,
+                array_values(get_object_vars($object))
+            );
         }
+
+        $placeholders = implode(', ', $placeholders);
 
         $statement = sprintf('INSERT INTO %s (%s) VALUES %s',
-            $table, $columns, implode(', ', $values));
+            $table, $columns, $placeholders);
 
+        $this->statement = $statement;
+        $this->bindings = $bindings;
+        $this->prepare($statement);
 
-        $sth = $this->execute($statement, $bindings);
-        $result = $sth->rowCount();
-
-        $this->lastInsertId = $this->lastInsertId();
-
-        $sth->closeCursor();
-        unset($sth);
-
-        return ($result > 0) ? $result : false;
+        return $this;
     }
 
     /**
-     * Performs an UPDATE query based off of the object properties
+     * Perform an UPDATE query on an object
      *
      * @access  public
-     * @param   string  $table  The table
      * @param   object  $object The object
-     * @param   string  $id     The object unique identifier
-     * @return                  Amount of affected rows
+     * @param   string  $table  The database table
+     * @param   string  $id     Object identifier
+     * @return  object
      */
-    public function updateObj($table, $object, $id = 'id')
+    public function updateObject($object, $table, $id = 'id')
     {
-        $properties = get_object_vars($object);
+        $columns = $this->columns;
+        $key = array_search($id, $columns);
+        unset($columns[$key]);
 
-        $temp = $properties[$id];
-        unset($properties[$id]);
+        $placeholders = implode(' = ?, ', $columns) . ' = ?';
 
-        $statement = sprintf('UPDATE %s SET %s WHERE %s = ?', $table,
-            implode(' = ?, ', array_keys($properties)) . ' = ?', $id);
+        $statement = sprintf('UPDATE %s SET %s WHERE %s = ?',
+            $table, $placeholders, $id);
 
-        $properties[$id] = $temp;
+        $values = get_object_vars($object);
+        $tmp = $values[$id];
+        unset($values[$id]);
+        $values[$id] = $tmp;
 
-        $sth = $this->execute($statement, array_values($properties));
-        $result = $sth->rowCount();
+        $this->statement = $statement;
+        $this->bindings = array_values($values);
+        $this->prepare($statement);
 
-        $sth->closeCursor();
-
-        unset($sth);
-
-        return ($result > 0) ? $result : false;
+        return $this;
     }
 
     /**
-     * Performs an UPDATE query on multiple objects
+     * Perform an UPDATE query on multiple objects
      *
      * @access  public
-     * @param   string  $table      The table
-     * @param   array   $objects    The objects
-     * @param   string  $id         The object unqiue identifier
-     * @return                      Amount of affected rows
+     * @param   object  $objects    The objects
+     * @param   string  $table      The database table
+     * @param   string  $id         Object identifier
+     * @return  object
      */
-    public function updateObjs($table, array $objects, $id = 'id')
+    public function updateObjects(array $objects, $table, $id = 'id')
     {
-        $statement = sprintf('UPDATE %s SET ', $table);
+        $columns = $this->columns;
+        $key = array_search($id, $columns);
+        unset($columns[$key]);
 
-        $properties = get_object_vars($objects[0]);
-        unset($properties[$id]);
-        $properties = array_keys($properties);
-
-        $ids = array();
         $bindings = array();
+        $cases = array();
+        $ids = array();
 
         foreach($objects as $object)
         {
-            $ids[] = $object->id;
+            array_push($ids, $object->id);
         }
 
-        $cases = '';
-
-        foreach($properties as $property)
+        foreach($columns as $column)
         {
-            $str = sprintf('%s = CASE %s ', $property, $id);
+            $case = sprintf('%s = CASE %s ', $column, $id);
 
             foreach($objects as $object)
             {
-                $str .= 'WHEN ? THEN ? ';
-                array_push($bindings, $object->{$id}, $object->{$property});
+                if(property_exists($object, $column))
+                {
+                    $case .= 'WHEN ? THEN ? ';
+                    array_push($bindings, $object->{$id}, $object->{$column});
+                }
             }
 
-            $str .= 'END, ';
-
-            $cases .= $str;
+            $case .= 'END';
+            array_push($cases, $case);
         }
 
-        $cases = rtrim($cases, ', ');
-        $statement .= sprintf('%s WHERE %s IN (%s)', $cases, $id, implode($ids, ', '));
-        $sth = $this->execute($statement, $bindings);
-        $result = $sth->rowCount();
-        $sth->closeCursor();
-        unset($sth);
+        $cases = implode(', ', $cases);
+        $ids = implode(', ', $ids);
+        
+        $statement = sprintf('UPDATE %s SET %s WHERE %s IN (%s)',
+            $table, $cases, $id, $ids);
 
-        return ($result > 0) ? $result : false;   
+        $this->statement = $statement;
+        $this->bindings = $bindings;
+        $this->prepare($statement);
+
+        return $this;
     }
 
     /**
-     * Execute a prepared statement
+     * Perform an DELETE query on an object
      *
      * @access  public
-     * @param   string  $statement  The query with named/mark placeholders
-     * @param   array   $bindings   Array of values for the placeholders
+     * @param   object  $object The object
+     * @param   string  $table  The database table
+     * @param   string  $id     Object identifier
      * @return  object
      */
-    protected function execute($statement, array $bindings = array())
+    public function deleteObject($object, $table, $id = 'id')
     {
-        $sth = $this->connection->prepare($statement);
+        $statement = sprintf('DELETE FROM %s WHERE %s = ?', $table, $id);
 
-        if( ! $sth)
-        {
-            $this->errorInfo = $this->errorInfo();
-        }
+        $this->statement = $statement;
+        $this->bindings = array($object->{$id});
+        $this->prepare($statement);
 
-        $sth->execute($bindings);
-
-        return $sth;
+        return $this;
     }
-    
+
     /**
-     * Shorthand function to perform a query transaction
+     * Perform an DELETE query on multiple objects
      *
      * @access  public
-     * @param   mixed   $query  The query to be performed
-     * @return  boolean         Return true if it worked (then commit) else return false (and rollback)
+     * @param   object  $objects    The objects
+     * @param   string  $table      The database table
+     * @param   string  $id         Object identifier
+     * @return  object
      */
-    public function transaction($query)
+    public function deleteObjects(array $objects, $table, $id = 'id')
     {
-        $this->begin();
+        $placeholders = array();
+        $bindings = array();
 
-        if( ! $query)
+        foreach($objects as $object)
         {
-            $this->rollBack();
+            array_push($placeholders, '?');
+            array_push($bindings, $object->{$id});
+        }
+
+        $placeholders = implode(', ', $placeholders);
+
+        $statement = sprintf('DELETE FROM %s WHERE %s IN (%s)',
+            $table, $id, $placeholders);
+
+        $this->statement = $statement;
+        $this->bindings = $bindings;
+        $this->prepare($statement);
+
+        return $this;
+    }
+
+    // TODO: implement..
+    public function where()
+    {
+        // ...
+    }
+
+    /**
+     * Add an ORDER BY to the current query
+     *
+     * @access  public
+     * @param   string  $order  The 'ORDER BY' statement
+     * @return  object
+     */
+    public function order($order)
+    {
+        $order = sprintf(' ORDER BY %s', $order);
+        $this->statement .= $order;
+        $this->prepare();
+
+        return $this;
+    }
+
+    /**
+     * Add an LIMIT to the current query
+     *
+     * @access  public
+     * @param   int     $limit  The limit
+     * @param   int     $offset The offset
+     * @return  object
+     */
+    public function limit($limit, $offset = null)
+    {
+        $limit = $offset !== null ? sprintf(' LIMIT %s, %s', $limit, $offset) : sprintf(' LIMIT %s', $limit);
+        $this->statement .= $limit;
+        $this->prepare();
+        
+        return $this;
+    }
+
+    /**
+     * Defines the columns to be used in queries based off of the object properties
+     *
+     * @access  public
+     * @param   object  $object Object(s) to be used for database querying
+     * @return  void
+     */
+    public function setColumns($object)
+    {
+        $object = is_array($object) ? $object[0] : $object;
+        $this->columns = array_keys(get_object_vars($object));
+    }
+
+    /**
+     * Prepare a database statement for execution
+     *
+     * @access  public
+     * @param   string  $statement  The statement to be prepared
+     * @return  void
+     */
+    public function prepare($statement = null)
+    {
+        $statement = $statement ? $statement : $this->statement;
+
+        try
+        {
+            $this->statementHandler = $this->connection->prepare($statement);
+        }
+        catch(PDOException $e)
+        {
+            throw new RuntimeException(
+                sprintf('Unable to prepare statement [%s]', $statement)
+            );
+        }
+    }
+
+    /**
+     * Execute a prepared database statement
+     *
+     * @access  public
+     * @param   array   $bindings   Bindings to be used with the prepared statement
+     * @return  mixed               Returns the resultset or false if it failed
+     */
+    public function execute(array $bindings = array())
+    {
+        $bindings = $bindings ? $bindings : $this->bindings;
+
+        try
+        {
+            $this->statementHandler->execute($bindings);
+        }
+        catch(PDOException $e)
+        {
+            if( (bool) $this->inTransaction())
+            {
+                $this->rollBack();
+            }
+
+            $this->errorInfo = $this->statementHandler->errorInfo();
+            $this->errorCode = $this->statementHandler->errorCode();
+            $this->exception = $e;
 
             return false;
         }
 
-        $this->commit();
+        if( (bool) $this->inTransaction())
+        {
+            $this->commit();
+        }
 
-        return true;
+        $this->statementHandler->setFetchMode(PDO::FETCH_CLASS, 'stdClass');
+
+        if($this->method)
+        {
+            $result = call_user_func(array($this->statementHandler, $this->method));
+        }
+        else
+        {
+            $result = $this->statementHandler->rowCount();
+        }
+
+        $this->statementHandler->closeCursor();
+        $this->statementHandler = null;
+
+        return $result;
     }
 
     /**
-     * Closes the current database connection
+     * Start a database transaction
+     *
+     * @access  public
+     * @return  object
+     */
+    public function transaction()
+    {
+        $this->beginTransaction();
+        return $this;
+    }
+
+    /**
+     * Close the database connection
      *
      * @access  public
      * @return  void
      */
     public function close()
     {
+        $this->statementHandler = null;
         $this->connection = null;
     }
 }
