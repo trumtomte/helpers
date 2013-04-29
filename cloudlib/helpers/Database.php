@@ -481,9 +481,7 @@ class Database
         $key = array_search($id, $columns);
         unset($columns[$key]);
 
-        $bindings = array();
-        $cases = array();
-        $ids = array();
+        $bindings = $cases = $ids = array();
 
         foreach($objects as $object)
         {
@@ -551,8 +549,7 @@ class Database
      */
     public function deleteObjects(array $objects, $table, $id = 'id')
     {
-        $placeholders = array();
-        $bindings = array();
+        $placeholders = $bindings = array();
 
         foreach($objects as $object)
         {
