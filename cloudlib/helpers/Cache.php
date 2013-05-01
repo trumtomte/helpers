@@ -37,12 +37,12 @@ class Cache
     public $extension = '.html';
 
     /**
-     * The cache file expiration timer (defaults to 1 week)
+     * The cache file expiration timer (defaults to 1 day)
      *
      * @access  public
      * @var     int
      */
-    public $expiration = 604800;
+    public $expiration = 86400;
 
     /**
      * Set the cache directory
@@ -170,6 +170,25 @@ class Cache
                 unlink($fileinfo->getFilename());
             }
         }
+    }
+
+    /**
+     * Get the make time of a cache file
+     *
+     * @access  public
+     * @param   string  $key    Cache identifier
+     * @return  int             Returns the file make time
+     */
+    public function mtime($key)
+    {
+        $filename = $this->getFilename($key);
+
+        if( ! file_exists($filename))
+        {
+            return false;
+        }
+
+        return filemtime($filename);
     }
 
     /**
