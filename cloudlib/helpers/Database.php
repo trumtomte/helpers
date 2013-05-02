@@ -260,6 +260,8 @@ class Database
      */
     public function fetchAll($statement, array $bindings = array())
     {
+        $this->reset();
+
         $this->statement = $statement;
         $this->bindings = $bindings;
         $this->prepare($statement);
@@ -277,6 +279,8 @@ class Database
      */
     public function fetchFirst($statement, array $bindings = array())
     {
+        $this->reset();
+
         $this->statement = $statement;
         $this->bindings = $bindings;
         $this->prepare($statement);
@@ -294,6 +298,8 @@ class Database
      */
     public function query($statement, array $bindings = array())
     {
+        $this->reset();
+
         $this->statement = $statement;
         $this->bindings = $bindings;
         $this->prepare($statement);
@@ -310,6 +316,8 @@ class Database
      */
     public function create($object, $table)
     {
+        $this->reset();
+
         $this->setColumns($object);
 
         if(is_object($object))
@@ -335,6 +343,8 @@ class Database
      */
     public function update($object, $table, $id = 'id')
     {
+        $this->reset();
+
         $this->setColumns($object);
     
         if(is_object($object))
@@ -360,6 +370,8 @@ class Database
      */
     public function remove($object, $table, $id = 'id')
     {
+        $this->reset();
+
         $this->setColumns($object);
 
         if(is_object($object))
@@ -678,10 +690,9 @@ class Database
             $this->commit();
         }
 
-        $this->statementHandler->setFetchMode(PDO::FETCH_CLASS, 'stdClass');
-
         if($this->method)
         {
+            $this->statementHandler->setFetchMode(PDO::FETCH_CLASS, 'stdClass');
             $result = call_user_func(array($this->statementHandler, $this->method));
         }
         else
@@ -717,5 +728,23 @@ class Database
     {
         $this->statementHandler = null;
         $this->connection = null;
+    }
+
+    /**
+     * Resets database properties before issuing a new query
+     *
+     * @access  public
+     * @return  void
+     */
+    public function reset()
+    {
+        $this->statement = '';
+        $this->bindings = array();
+        $this->statementHandler = null;
+        $this->errorInfo = null;
+        $this->errorCode = null;
+        $this->exception = null;
+        $this->method = false;
+        $this->columns = array();
     }
 }
