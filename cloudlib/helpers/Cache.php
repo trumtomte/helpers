@@ -53,7 +53,7 @@ class Cache
      */
     public function __construct($directory)
     {
-        $directory = rtrim($directory, '/');
+        $directory = rtrim($directory, '/') . '/';
 
         if( ! file_exists($directory))
         {
@@ -165,9 +165,9 @@ class Cache
 
         foreach($directory as $fileinfo)
         {
-            if($fileinfo->isFile())
+            if($fileinfo->isFile() && $fileinfo->getExtension() == substr($this->extension, 1))
             {
-                unlink($fileinfo->getFilename());
+                unlink($this->directory . $fileinfo->getFilename());
             }
         }
     }
@@ -200,7 +200,7 @@ class Cache
      */
     public function getFilename($key)
     {
-        return sprintf('%s/%s%s', $this->directory, md5($key), $this->extension);
+        return sprintf('%s%s%s', $this->directory, md5($key), $this->extension);
     }
 
     /**
